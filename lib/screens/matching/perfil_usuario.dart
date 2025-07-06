@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-class PerfilAdversarioPage extends StatelessWidget {
-  const PerfilAdversarioPage({super.key});
+class PerfilUsuarioPage extends StatelessWidget {
+  const PerfilUsuarioPage({super.key});
 
   String categoriaPesoUFC(int peso) {
     if (peso <= 56) return 'Peso Mosca';

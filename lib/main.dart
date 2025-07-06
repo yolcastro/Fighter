@@ -23,7 +23,7 @@ import 'screens/matching/match.dart';
 import 'screens/matching/chat.dart';
 import 'screens/matching/historico_conversas.dart';
 import 'screens/matching/perfil_adversario.dart';
-import 'screens/matching/perfil_usuario.dart';
+import 'screens/matching/perfil_usuario.dart' hide PerfilAdversarioPage;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
