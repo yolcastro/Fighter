@@ -10,13 +10,22 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
+  # Firebase
+  firebase_core: ^2.27.0
+  firebase_auth: ^4.16.0
+
+  # Ícones e utilitários
   cupertino_icons: ^1.0.8
-  image_picker: ^1.0.4 # <-- Adicionado
+  image_picker: ^1.0.4
+  path_provider: ^2.1.2
+  http: ^1.4.0   # ✅ atualizado para versão compatível com flutterfire_cli
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
+  flutter_lints: ^3.0.1
+  flutterfire_cli: ^1.3.1
 
 flutter:
   uses-material-design: true
@@ -24,3 +33,8 @@ flutter:
   assets:
     - assets/boxing.png
     - assets/fighter_bg.png
+    - assets/pfp.jpg
+    - assets/ana.jpg
+    - assets/carlos.jpg
+    - assets/marina.jpg
+    - assets/usuario.jpg
