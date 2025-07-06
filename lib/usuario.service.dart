@@ -4,6 +4,8 @@ import 'package:http/http.dart' as http;
 class UsuarioService {
   static const String baseUrl = 'https://e9f6-187-18-138-85.ngrok-free.app/api/usuarios/';
 
+  /// Cria um novo usuário no backend
+  /// Recebe um mapa com os dados do usuário e retorna o UID gerado ou null em caso de erro
   static Future<String?> criarUsuario(Map<String, dynamic> usuario) async {
     final url = Uri.parse(baseUrl);
 
@@ -29,11 +31,10 @@ class UsuarioService {
     }
   }
 
-  /// NOVA FUNÇÃO: Atualiza os dados de um usuário existente.
-  /// Recebe o ID do usuário e um mapa com os campos a serem atualizados.
-  /// Retorna true se a atualização foi bem-sucedida, false caso contrário.
+  /// Atualiza os dados de um usuário existente
+  /// Recebe o ID do usuário e um mapa com os campos a serem atualizados
+  /// Retorna true se a atualização foi bem-sucedida, false caso contrário
   static Future<bool> atualizarUsuario(String userId, Map<String, dynamic> updateData) async {
-    // Constrói a URL para a requisição PUT, incluindo o ID do usuário no path.
     final url = Uri.parse('$baseUrl$userId');
 
     try {
@@ -41,13 +42,11 @@ class UsuarioService {
         url,
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
-          // Se sua API exige um token de autenticação (Firebase ID Token), adicione-o aqui:
-          // 'Authorization': 'Bearer ${await FirebaseAuth.instance.currentUser?.getIdToken()}',
         },
-        body: jsonEncode(updateData), // Envia os dados de atualização no corpo da requisição
+        body: jsonEncode(updateData),
       );
 
-      if (response.statusCode == 200) { // HTTP 200 OK indica sucesso na atualização
+      if (response.statusCode == 200) {
         print('Usuário com ID $userId atualizado com sucesso!');
         print('Resposta da API: ${response.body}');
         return true;
@@ -57,6 +56,49 @@ class UsuarioService {
       }
     } catch (e) {
       print('Exceção ao atualizar usuário $userId: $e');
+      return false;
+    }
+  }
+
+  /// Busca os dados de um usuário pelo seu ID
+  /// Retorna um mapa com os dados do usuário ou null em caso de erro
+  static Future<Map<String, dynamic>?> buscarUsuarioPorId(String userId) async {
+    final url = Uri.parse('$baseUrl$userId');
+
+    try {
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print('Usuário encontrado: $data');
+        return data;
+      } else {
+        print('Erro ao buscar usuário: ${response.statusCode} ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      print('Exceção ao buscar usuário: $e');
+      return null;
+    }
+  }
+
+  /// Deleta um usuário pelo seu ID
+  /// Retorna true se a exclusão foi bem-sucedida, false caso contrário
+  static Future<bool> deletarUsuario(String userId) async {
+    final url = Uri.parse('$baseUrl$userId');
+
+    try {
+      final response = await http.delete(url);
+
+      if (response.statusCode == 200) {
+        print('Usuário com ID $userId deletado com sucesso!');
+        return true;
+      } else {
+        print('Erro ao deletar usuário $userId: ${response.statusCode} ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      print('Exceção ao deletar usuário: $e');
       return false;
     }
   }
