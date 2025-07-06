@@ -1,21 +1,7 @@
 import 'package:flutter/material.dart';
-import 'editar.dart';
 
-class PerfilUsuarioPage extends StatefulWidget {
-  const PerfilUsuarioPage({super.key});
-
-  @override
-  State<PerfilUsuarioPage> createState() => _PerfilUsuarioPageState();
-}
-
-class _PerfilUsuarioPageState extends State<PerfilUsuarioPage> {
-  String nome = 'Jonas';
-  String genero = 'Masculino';
-  int altura = 180;
-  int peso = 70;
-  String local = 'Fortaleza, Ceará';
-  String descricao = 'Pronto pra evoluir a cada treino!';
-  List<String> estilos = ['Capoeira - Avançado', 'Jiu-Jitsu - Intermediário', 'Muay Thai - Avançado'];
+class PerfilAdversarioPage extends StatelessWidget {
+  const PerfilAdversarioPage({super.key});
 
   String categoriaPesoUFC(int peso) {
     if (peso <= 56) return 'Peso Mosca';
@@ -29,61 +15,25 @@ class _PerfilUsuarioPageState extends State<PerfilUsuarioPage> {
     return 'Categoria Fora do UFC';
   }
 
-  Future<void> _confirmarSaida() async {
-    final confirmar = await showDialog<bool>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        contentPadding: const EdgeInsets.symmetric(vertical: 16),
-        children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24.0),
-            child: Text(
-              'Deseja sair da conta?',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text(
-                  'Cancelar',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text(
-                  'Sair',
-                  style: TextStyle(color: Color(0xFF8B2E2E)),
-                ),
-              ),
-            ],
-          )
-        ],
-      ),
-    );
-
-    if (confirmar == true) {
-      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final String nome = 'Marina';
+    final String genero = 'Mulher';
+    final int altura = 170;
+    final int peso = 62;
+    final String local = 'Fortaleza, Ceará';
+    final String descricao = 'Capoeirista com alma leve. Treino é conexão.';
+    final List<String> estilos = ['Capoeira - Intermediário'];
+
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: Colors.white, // fundo geral branco
       body: SafeArea(
         child: Column(
           children: [
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               decoration: const BoxDecoration(
-                color: Colors.white,
+                color: Color(0xFFEFEFEF), // cabeçalho efefef
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black12,
@@ -105,41 +55,11 @@ class _PerfilUsuarioPageState extends State<PerfilUsuarioPage> {
                     ),
                   ),
                   const Text(
-                    'Meu Perfil',
+                    'Perfil',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: Colors.black,
-                    ),
-                  ),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.settings, color: Color(0xFF8B2E2E)),
-                          onPressed: () {
-                            _confirmarSaida();
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.edit, color: Color(0xFF8B2E2E)),
-                          onPressed: () async {
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const EditarPerfil()),
-                            );
-
-                            if (result == true) {
-                              setState(() {
-                                nome = 'Jonas Atualizado';
-                                descricao = 'Descrição atualizada após edição.';
-                              });
-                            }
-                          },
-                        ),
-                      ],
                     ),
                   ),
                 ],
@@ -154,7 +74,7 @@ class _PerfilUsuarioPageState extends State<PerfilUsuarioPage> {
                   children: [
                     const CircleAvatar(
                       radius: 70,
-                      backgroundImage: AssetImage('assets/usuario.jpg'),
+                      backgroundImage: AssetImage('assets/marina.jpg'),
                     ),
                     const SizedBox(height: 20),
                     Text(
@@ -190,7 +110,7 @@ class _PerfilUsuarioPageState extends State<PerfilUsuarioPage> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: Colors.grey[200],
+                        color: const Color(0xFFEFEFEF), // descrição fundo efefef
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Text(
@@ -205,27 +125,44 @@ class _PerfilUsuarioPageState extends State<PerfilUsuarioPage> {
                       runSpacing: 10,
                       alignment: WrapAlignment.center,
                       children: estilos.map((estilo) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF8B2E2E),
-                            borderRadius: BorderRadius.circular(30),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Colors.black26,
-                                blurRadius: 4,
-                                offset: Offset(0, 2),
-                              )
-                            ],
-                          ),
-                          child: Text(
-                            estilo,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                        final partes = estilo.split(' - ');
+                        final nomeArte = partes[0];
+                        final nivel = partes.length > 1 ? partes[1] : 'N/A';
+
+                        return Column(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF8B2E2E),
+                                borderRadius: BorderRadius.circular(30),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Colors.black26,
+                                    blurRadius: 4,
+                                    offset: Offset(0, 2),
+                                  )
+                                ],
+                              ),
+                              child: Text(
+                                nomeArte,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
                             ),
-                          ),
+                            const SizedBox(height: 6),
+                            Text(
+                              nivel,
+                              style: const TextStyle(
+                                color: Colors.black87,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         );
                       }).toList(),
                     ),
