@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class UsuarioService {
-  static const String baseUrl = 'https://098b-187-18-138-85.ngrok-free.app/api/usuarios/';
+  static const String baseUrl = 'https://e9f6-187-18-138-85.ngrok-free.app/api/usuarios/';
 
   static Future<String?> criarUsuario(Map<String, dynamic> usuario) async {
     final url = Uri.parse(baseUrl);
@@ -61,3 +61,4 @@ class UsuarioService {
     }
   }
 }
+

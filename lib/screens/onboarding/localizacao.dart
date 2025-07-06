@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fighter_app/usuario.service.dart';
 
 class TelaLocalizacao extends StatefulWidget {
   const TelaLocalizacao({super.key});
@@ -8,28 +10,17 @@ class TelaLocalizacao extends StatefulWidget {
 }
 
 class _TelaLocalizacaoState extends State<TelaLocalizacao> {
-  final List<String> estados = [
-    'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO',
-    'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI',
-    'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
-  ];
+  final List<String> estados = ['CE', 'SP', 'RJ', 'MG'];
 
   final Map<String, String> nomesEstados = {
-    'AC': 'Acre', 'AL': 'Alagoas', 'AP': 'Amapá', 'AM': 'Amazonas',
-    'BA': 'Bahia', 'CE': 'Ceará', 'DF': 'Distrito Federal', 'ES': 'Espírito Santo',
-    'GO': 'Goiás', 'MA': 'Maranhão', 'MT': 'Mato Grosso', 'MS': 'Mato Grosso do Sul',
-    'MG': 'Minas Gerais', 'PA': 'Pará', 'PB': 'Paraíba', 'PR': 'Paraná',
-    'PE': 'Pernambuco', 'PI': 'Piauí', 'RJ': 'Rio de Janeiro', 'RN': 'Rio Grande do Norte',
-    'RS': 'Rio Grande do Sul', 'RO': 'Rondônia', 'RR': 'Roraima', 'SC': 'Santa Catarina',
-    'SP': 'São Paulo', 'SE': 'Sergipe', 'TO': 'Tocantins',
+    'CE': 'Ceará',
+    'SP': 'São Paulo',
+    'RJ': 'Rio de Janeiro',
+    'MG': 'Minas Gerais',
   };
 
   final Map<String, List<String>> cidadesPorEstado = {
-    'CE': ['Fortaleza', 'Caucaia', 'Juazeiro do Norte', 'Maracanaú'],
-    'SP': ['São Paulo', 'Campinas', 'Santos', 'São Bernardo do Campo'],
-    'RJ': ['Rio de Janeiro', 'Niterói', 'Duque de Caxias', 'Nova Iguaçu'],
-    'MG': ['Belo Horizonte', 'Contagem', 'Uberlândia', 'Juiz de Fora'],
-    // adicione mais estados e cidades conforme necessidade
+    'CE': ['Fortaleza', 'Caucaia', 'Itaitinga', 'Maracanaú'],
   };
 
   String estadoSelecionado = 'CE';
@@ -42,6 +33,41 @@ class _TelaLocalizacaoState extends State<TelaLocalizacao> {
       );
       return;
     }
+
+    // Obter UID do usuário logado
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nenhum usuário logado. Faça login novamente.')),
+      );
+      return;
+    }
+
+    // Preparar dados para atualização: localização concatenada
+    final String localizacao = '$cidadeSelecionada - $estadoSelecionado';
+
+    final Map<String, dynamic> updateData = {
+      'localizacao': localizacao,
+    };
+
+    print('Enviando updateData: $updateData');
+
+    // Chamar a função de atualização sem await e sem loading
+    UsuarioService.atualizarUsuario(currentUser.uid, updateData).then((success) {
+      if (success) {
+        print('Localização atualizada com sucesso para o UID: ${currentUser.uid}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Localização atualizada com sucesso!')),
+        );
+      } else {
+        print('Erro ao atualizar localização para o UID: ${currentUser.uid}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erro ao atualizar localização.')),
+        );
+      }
+    });
+
+    // Navegar imediatamente para a próxima tela
     Navigator.pushNamed(context, '/caracteristicas');
   }
 
@@ -71,7 +97,7 @@ class _TelaLocalizacaoState extends State<TelaLocalizacao> {
     if (selecionado != null) {
       setState(() {
         estadoSelecionado = selecionado;
-        cidadeSelecionada = null; // reseta a cidade ao trocar de estado
+        cidadeSelecionada = null;
       });
     }
   }
@@ -99,6 +125,10 @@ class _TelaLocalizacaoState extends State<TelaLocalizacao> {
               _buildLabel('Cidade'),
               const SizedBox(height: 8),
               _buildDropdownCidade(cidades),
+              const SizedBox(height: 24),
+              _buildLabel('Localização selecionada'),
+              const SizedBox(height: 8),
+              _buildConcatenacao(),
               const Spacer(),
               _buildBotaoProximo(),
               const SizedBox(height: 24),
@@ -203,6 +233,30 @@ class _TelaLocalizacaoState extends State<TelaLocalizacao> {
     );
   }
 
+  Widget _buildConcatenacao() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE0E0E0),
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Text(
+        cidadeSelecionada != null
+            ? '$cidadeSelecionada - $estadoSelecionado'
+            : 'Nenhuma cidade selecionada',
+        style: const TextStyle(fontSize: 16, color: Colors.black87),
+      ),
+    );
+  }
+
   Widget _buildBotaoProximo() {
     return Center(
       child: SizedBox(
@@ -220,7 +274,7 @@ class _TelaLocalizacaoState extends State<TelaLocalizacao> {
           child: const Text(
             'PRÓXIMO',
             style: TextStyle(
-              fontSize: 18,
+              fontSize: 15,
               fontWeight: FontWeight.w600,
               color: Colors.white,
               letterSpacing: 1.0,

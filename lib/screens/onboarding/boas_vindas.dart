@@ -82,7 +82,7 @@ class TelaBoasVindas extends StatelessWidget {
                     child: const Text(
                       'COMEÇAR',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 15,
                         fontWeight: FontWeight.w600,
                         color: Colors.white,
                         letterSpacing: 1.1,

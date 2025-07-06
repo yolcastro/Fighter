@@ -21,6 +21,7 @@ dependencies:
   path_provider: ^2.1.2
   http: ^1.4.0   # ✅ atualizado para versão compatível com flutterfire_cli
   rename_app: ^1.6.5
+  flutter_vector_icons: ^2.0.0
 
 dev_dependencies:
   flutter_test:

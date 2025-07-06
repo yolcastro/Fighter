@@ -48,27 +48,18 @@ class _EditarPerfilState extends State<EditarPerfil> {
   final List<String> generos = ['Masculino', 'Feminino', 'Outro'];
 
   final List<String> estados = [
-    'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO',
-    'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI',
-    'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
+    'CE', 'MG', 'RJ', 'SP',
   ];
 
   final Map<String, String> nomesEstados = {
-    'AC': 'Acre', 'AL': 'Alagoas', 'AP': 'Amapá', 'AM': 'Amazonas',
-    'BA': 'Bahia', 'CE': 'Ceará', 'DF': 'Distrito Federal', 'ES': 'Espírito Santo',
-    'GO': 'Goiás', 'MA': 'Maranhão', 'MT': 'Mato Grosso', 'MS': 'Mato Grosso do Sul',
-    'MG': 'Minas Gerais', 'PA': 'Pará', 'PB': 'Paraíba', 'PR': 'Paraná',
-    'PE': 'Pernambuco', 'PI': 'Piauí', 'RJ': 'Rio de Janeiro', 'RN': 'Rio Grande do Norte',
-    'RS': 'Rio Grande do Sul', 'RO': 'Rondônia', 'RR': 'Roraima', 'SC': 'Santa Catarina',
-    'SP': 'São Paulo', 'SE': 'Sergipe', 'TO': 'Tocantins',
+    'CE': 'Ceará',
+    'SP': 'São Paulo',
+    'RJ': 'Rio de Janeiro',
+    'MG': 'Minas Gerais',
   };
 
   final Map<String, List<String>> cidadesPorEstado = {
-    'CE': ['Fortaleza', 'Caucaia', 'Juazeiro do Norte', 'Maracanaú'],
-    'SP': ['São Paulo', 'Campinas', 'Santos', 'São Bernardo do Campo'],
-    'RJ': ['Rio de Janeiro', 'Niterói', 'Duque de Caxias', 'Nova Iguaçu'],
-    'MG': ['Belo Horizonte', 'Contagem', 'Uberlândia', 'Juiz de Fora'],
-    // adicione mais estados e cidades conforme necessário
+    'CE': ['Fortaleza', 'Caucaia', 'Itaitinga', 'Maracanaú'],
   };
 
   Future<void> _escolherImagem() async {
@@ -177,11 +168,12 @@ class _EditarPerfilState extends State<EditarPerfil> {
             child: IconButton(
               icon: const Icon(Icons.save, color: Color(0xFF8B2E2E)),
               onPressed: () {
+                String estadoCidade = '${cidadeSelecionada ?? ''}, ${estadoSelecionado ?? ''}';
+
                 Navigator.pop(context, {
                   'nome': nomeController.text,
                   'dataNascimento': '$diaSelecionado de $mesSelecionado de $anoSelecionado',
-                  'estado': estadoSelecionado,
-                  'cidade': cidadeSelecionada,
+                  'estadoCidade': estadoCidade,
                   'genero': generoController.text,
                   'altura': alturaController.text,
                   'peso': categoriaPesoSelecionada,
@@ -234,6 +226,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
         GestureDetector(
           onTap: isGenero ? _mostrarPopupGenero : null,
           child: AbsorbPointer(
+            absorbing: isGenero,
             child: TextField(
               controller: controller,
               decoration: const InputDecoration(
@@ -342,19 +335,27 @@ class _EditarPerfilState extends State<EditarPerfil> {
   }
 
   Widget _buildEstadoCidadeCampos() {
+    String localizacao = '${cidadeSelecionada ?? ''}, ${estadoSelecionado ?? ''}';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text('Estado e Cidade', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         Row(
           children: [
-            Expanded(
+            Flexible(
+              flex: 4,
+              fit: FlexFit.tight,
               child: DropdownButtonFormField<String>(
                 value: estadoSelecionado,
                 items: estados.map((uf) {
                   return DropdownMenuItem<String>(
                     value: uf,
-                    child: Text('$uf - ${nomesEstados[uf] ?? uf}', style: const TextStyle(fontSize: 16)),
+                    child: Text(
+                      uf, // mostra apenas sigla
+                      style: const TextStyle(fontSize: 14),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   );
                 }).toList(),
                 onChanged: (newValue) {
@@ -368,13 +369,19 @@ class _EditarPerfilState extends State<EditarPerfil> {
               ),
             ),
             const SizedBox(width: 8),
-            Expanded(
+            Flexible(
+              flex: 6,
+              fit: FlexFit.tight,
               child: DropdownButtonFormField<String>(
                 value: cidadeSelecionada,
                 items: (cidadesPorEstado[estadoSelecionado] ?? []).map((cidade) {
                   return DropdownMenuItem<String>(
                     value: cidade,
-                    child: Text(cidade, style: const TextStyle(fontSize: 16)),
+                    child: Text(
+                      cidade,
+                      style: const TextStyle(fontSize: 14),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   );
                 }).toList(),
                 onChanged: (newValue) {
@@ -386,6 +393,13 @@ class _EditarPerfilState extends State<EditarPerfil> {
               ),
             ),
           ],
+        ),
+        const Divider(thickness: 1, color: Colors.black),
+        const SizedBox(height: 12),
+        const Text('Localização', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        Text(
+          localizacao,
+          style: const TextStyle(fontSize: 16),
         ),
         const Divider(thickness: 1, color: Colors.black),
         const SizedBox(height: 12),

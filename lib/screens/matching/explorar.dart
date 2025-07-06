@@ -4,6 +4,8 @@ import 'match.dart';
 import '../auth/login.dart';
 import 'historico_conversas.dart';
 import 'perfil_usuario.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class Pessoa {
   final String nome;
@@ -27,53 +29,64 @@ class Pessoa {
     required this.descricao,
     required this.modalidades,
   });
+
+  factory Pessoa.fromJson(Map<String, dynamic> json) {
+    return Pessoa(
+      nome: json['nome'],
+      idade: json['idade'],
+      foto: json['foto'], // ajuste conforme seu backend
+      local: json['local'],
+      genero: json['sexo'],
+      altura: json['altura'],
+      peso: json['peso'],
+      descricao: json['descricao'],
+      modalidades: List<String>.from(json['modalidades']),
+    );
+  }
 }
 
 class TelaExplorar extends StatefulWidget {
-  const TelaExplorar({super.key});
+  final Map<String, dynamic>? filtros;
+
+  const TelaExplorar({super.key, this.filtros});
 
   @override
   State<TelaExplorar> createState() => _TelaExplorarState();
 }
 
 class _TelaExplorarState extends State<TelaExplorar> {
-  final List<Pessoa> pessoas = [
-    Pessoa(
-      nome: 'Ana',
-      idade: 23,
-      foto: 'assets/ana.jpg',
-      local: 'Fortaleza, Ceará',
-      genero: 'Mulher',
-      altura: 165,
-      peso: 58,
-      descricao: 'Praticante de Muay Thai, adoro treinos intensos e disciplina.',
-      modalidades: ['Muay Thai - Intermediário'],
-    ),
-    Pessoa(
-      nome: 'Carlos',
-      idade: 29,
-      foto: 'assets/carlos.jpg',
-      local: 'Fortaleza, Ceará',
-      genero: 'Homem',
-      altura: 178,
-      peso: 75,
-      descricao: 'Faixa roxa de Jiu-Jitsu, buscando novos desafios.',
-      modalidades: ['Jiu-Jitsu - Avançado'],
-    ),
-    Pessoa(
-      nome: 'Marina',
-      idade: 26,
-      foto: 'assets/marina.jpg',
-      local: 'Fortaleza, Ceará',
-      genero: 'Mulher',
-      altura: 170,
-      peso: 62,
-      descricao: 'Capoeirista com alma leve. Treino é conexão.',
-      modalidades: ['Capoeira - Intermediário'],
-    ),
-  ];
-
+  List<Pessoa> pessoas = [];
   int currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _buscarUsuariosFiltrados();
+  }
+
+  Future<void> _buscarUsuariosFiltrados() async {
+    final filtros = widget.filtros ?? {};
+    final queryParams = filtros.entries
+        .where((entry) => entry.value != null && entry.value.toString().isNotEmpty)
+        .map((entry) => '${entry.key}=${Uri.encodeComponent(entry.value.toString())}')
+        .join('&');
+
+    final url = Uri.parse('https://e9f6-187-18-138-85.ngrok-free.app/api/usuarios/filtrar?$queryParams');
+
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        setState(() {
+          pessoas = data.map((json) => Pessoa.fromJson(json)).toList();
+        });
+      } else {
+        print('Erro ao buscar usuários: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Erro: $e');
+    }
+  }
 
   String categoriaPesoUFC(int peso) {
     if (peso <= 56) return 'Peso Mosca';
@@ -167,6 +180,176 @@ class _TelaExplorarState extends State<TelaExplorar> {
     exit(0);
   }
 
+  Widget _buildPerfil() {
+    if (currentIndex >= pessoas.length) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            Text('🥊', style: TextStyle(fontSize: 50)),
+            SizedBox(height: 16),
+            Text(
+              'Nenhum parceiro encontrado\ncom esses filtros.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
+                color: Colors.black54,
+                height: 1.4,
+              ),
+            ),
+            SizedBox(height: 12),
+            Text(
+              'Tente ajustar seus filtros\npara encontrar mais parceiros!',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 15,
+                color: Colors.black45,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final pessoa = pessoas[currentIndex];
+
+    return SingleChildScrollView(
+      child: Card(
+        elevation: 6,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          child: Column(
+            children: [
+              CircleAvatar(
+                radius: 70,
+                backgroundImage: NetworkImage(pessoa.foto),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                '${pessoa.nome}, ${pessoa.idade}',
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF8B2E2E),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.location_on, size: 18, color: Colors.black54),
+                  const SizedBox(width: 6),
+                  Text(
+                    pessoa.local,
+                    style: const TextStyle(color: Colors.black54, fontSize: 16),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '${pessoa.genero} • ${pessoa.altura} cm • ${categoriaPesoUFC(pessoa.peso)}',
+                style: const TextStyle(color: Colors.black54, fontSize: 15),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  pessoa.descricao,
+                  style: const TextStyle(fontSize: 15, height: 1.4),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Wrap(
+                spacing: 12,
+                runSpacing: 10,
+                alignment: WrapAlignment.center,
+                children: pessoa.modalidades.map((modalidade) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF8B2E2E),
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 4,
+                          offset: Offset(0, 2),
+                        )
+                      ],
+                    ),
+                    child: Text(
+                      modalidade,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 28),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  GestureDetector(
+                    onTap: _dislike,
+                    child: Container(
+                      width: 70,
+                      height: 70,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black12,
+                            blurRadius: 10,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(Icons.close, color: Color(0xFF8B2E2E), size: 45),
+                    ),
+                  ),
+                  const SizedBox(width: 60),
+                  GestureDetector(
+                    onTap: _like,
+                    child: Container(
+                      width: 70,
+                      height: 70,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF8B2E2E),
+                        shape: BoxShape.circle,
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black45,
+                            blurRadius: 10,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(Icons.sports_mma, color: Colors.white, size: 40),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildBotaoVoltar() {
     return IconButton(
       icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF8B2E2E)),
@@ -187,6 +370,7 @@ class _TelaExplorarState extends State<TelaExplorar> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Top bar
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -258,156 +442,8 @@ class _TelaExplorarState extends State<TelaExplorar> {
                   ],
                 ),
                 const SizedBox(height: 24),
-
-                if (currentIndex >= pessoas.length)
-                  const Center(
-                    child: Text(
-                      'Não há mais perfis para mostrar.',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black54,
-                      ),
-                    ),
-                  ),
-
-                if (currentIndex < pessoas.length)
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Card(
-                        elevation: 6,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-                          child: Column(
-                            children: [
-                              CircleAvatar(
-                                radius: 70,
-                                backgroundImage: AssetImage(pessoas[currentIndex].foto),
-                              ),
-                              const SizedBox(height: 20),
-                              Text(
-                                '${pessoas[currentIndex].nome}, ${pessoas[currentIndex].idade}',
-                                style: const TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF8B2E2E),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(Icons.location_on, size: 18, color: Colors.black54),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    pessoas[currentIndex].local,
-                                    style: const TextStyle(color: Colors.black54, fontSize: 16),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                '${pessoas[currentIndex].genero} • ${pessoas[currentIndex].altura} cm • ${categoriaPesoUFC(pessoas[currentIndex].peso)}',
-                                style: const TextStyle(color: Colors.black54, fontSize: 15),
-                              ),
-                              const SizedBox(height: 16),
-                              Container(
-                                padding: const EdgeInsets.all(14),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[200],
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Text(
-                                  pessoas[currentIndex].descricao,
-                                  style: const TextStyle(fontSize: 15, height: 1.4),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                              Wrap(
-                                spacing: 12,
-                                runSpacing: 10,
-                                alignment: WrapAlignment.center,
-                                children: pessoas[currentIndex].modalidades.map((modalidade) {
-                                  return Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF8B2E2E),
-                                      borderRadius: BorderRadius.circular(30),
-                                      boxShadow: const [
-                                        BoxShadow(
-                                          color: Colors.black26,
-                                          blurRadius: 4,
-                                          offset: Offset(0, 2),
-                                        )
-                                      ],
-                                    ),
-                                    child: Text(
-                                      modalidade,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                              const SizedBox(height: 28),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  GestureDetector(
-                                    onTap: _dislike,
-                                    child: Container(
-                                      width: 70,
-                                      height: 70,
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        shape: BoxShape.circle,
-                                        boxShadow: const [
-                                          BoxShadow(
-                                            color: Colors.black12,
-                                            blurRadius: 10,
-                                            offset: Offset(0, 4),
-                                          ),
-                                        ],
-                                      ),
-                                      child: const Icon(Icons.close, color: Color(0xFF8B2E2E), size: 45),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 60),
-                                  GestureDetector(
-                                    onTap: _like,
-                                    child: Container(
-                                      width: 70,
-                                      height: 70,
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF8B2E2E),
-                                        shape: BoxShape.circle,
-                                        boxShadow: const [
-                                          BoxShadow(
-                                            color: Colors.black45,
-                                            blurRadius: 10,
-                                            offset: Offset(0, 4),
-                                          ),
-                                        ],
-                                      ),
-                                      child: const Icon(Icons.favorite, color: Colors.white, size: 40),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                // Perfil ou mensagem de vazio
+                Expanded(child: _buildPerfil()),
               ],
             ),
           ),

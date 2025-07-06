@@ -64,7 +64,7 @@ class _TelaDataNascimentoState extends State<TelaDataNascimento> {
     if (success) {
       print('Data de nascimento atualizada com sucesso para o UID: ${currentUser.uid}');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Data de Nascimento atualizada com sucesso!')),
+        const SnackBar(content: Text('Data de nascimento atualizada com sucesso!')),
       );
       // Navegar para a próxima tela após o sucesso
       Navigator.push(

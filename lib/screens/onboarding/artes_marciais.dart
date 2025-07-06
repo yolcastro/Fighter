@@ -1,7 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fighter_app/usuario.service.dart'; // ajuste conforme seu projeto
 
 class TelaArtesMarciais extends StatefulWidget {
-  const TelaArtesMarciais({super.key});
+  final String? sexo;
+  final String? nivelExperiencia;
+  final String? pesoCategoria;
+
+  const TelaArtesMarciais({
+    super.key,
+    this.sexo,
+    this.nivelExperiencia,
+    this.pesoCategoria,
+  });
 
   @override
   State<TelaArtesMarciais> createState() => _TelaArtesMarciaisState();
@@ -21,60 +32,62 @@ class _TelaArtesMarciaisState extends State<TelaArtesMarciais> {
   ];
 
   final List<String> niveis = ['Iniciante', 'Intermediário', 'Avançado'];
-  final Map<String, String> selecionadas = {};
+  String? nivelSelecionado;
+  final List<String> selecionadas = [];
 
-  bool get podeAvancar => selecionadas.values.any((nivel) => nivel.isNotEmpty);
+  bool get podeAvancar => selecionadas.isNotEmpty && nivelSelecionado != null;
 
-  Future<void> selecionarArte(String arte) async {
-    if (!selecionadas.containsKey(arte)) {
-      final nivel = await showModalBottomSheet<String>(
-        context: context,
-        isScrollControlled: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        builder: (_) => Padding(
-          padding: const EdgeInsets.fromLTRB(24, 32, 24, 40),
-          child: Wrap(
-            runSpacing: 16,
-            children: niveis
-                .map((n) => SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.pop(context, n),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF8D0000),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 18),
-                        ),
-                        child: Text(
-                          n,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ))
-                .toList(),
-          ),
-        ),
-      );
-      if (nivel != null) {
-        setState(() => selecionadas[arte] = nivel);
+  void selecionarArte(String arte) {
+    setState(() {
+      if (selecionadas.contains(arte)) {
+        selecionadas.remove(arte);
+      } else {
+        if (selecionadas.length >= 2) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Selecione no máximo 2 artes marciais.'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        } else {
+          selecionadas.add(arte);
+        }
       }
+    });
+  }
+
+  Future<void> salvarEDefinirProximo() async {
+    if (!podeAvancar) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecione ao menos 1 arte marcial e um nível de experiência.')),
+      );
+      return;
     }
-  }
 
-  void selecionarNivel(String arte, String nivel) {
-    setState(() => selecionadas[arte] = nivel);
-  }
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nenhum usuário logado. Faça login novamente.')),
+      );
+      return;
+    }
 
-  void removerArte(String arte) {
-    setState(() => selecionadas.remove(arte));
+    final Map<String, dynamic> updateData = {
+      'arteMarcial': selecionadas,
+      'nivelExperiencia': nivelSelecionado, // ajustado para o back
+      'preferenciaSexo': widget.sexo,
+      'preferenciaNivel': widget.nivelExperiencia,
+      'preferenciaPeso': widget.pesoCategoria,
+    };
+
+    final sucesso = await UsuarioService.atualizarUsuario(currentUser.uid, updateData);
+    if (sucesso) {
+      Navigator.pushNamed(context, '/fotoperfil'); // agora vai para foto_perfil.dart
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Erro ao salvar suas artes marciais.')),
+      );
+    }
   }
 
   @override
@@ -94,6 +107,8 @@ class _TelaArtesMarciaisState extends State<TelaArtesMarciais> {
                   const SizedBox(height: 24),
                   _buildTitulo(),
                   const SizedBox(height: 16),
+                  _buildNivelExperiencia(),
+                  const SizedBox(height: 24),
                   Expanded(child: _buildListaArtes()),
                   const SizedBox(height: 24),
                   _buildBotaoProximo(),
@@ -117,7 +132,7 @@ class _TelaArtesMarciaisState extends State<TelaArtesMarciais> {
 
   Widget _buildTitulo() {
     return const Text(
-      'O que você pratica?',
+      'O que você pratica?\nE qual seu nível?',
       style: TextStyle(
         fontSize: 20,
         fontWeight: FontWeight.w600,
@@ -126,78 +141,65 @@ class _TelaArtesMarciaisState extends State<TelaArtesMarciais> {
     );
   }
 
+  Widget _buildNivelExperiencia() {
+    return Wrap(
+      spacing: 12,
+      children: niveis.map((n) {
+        final ativo = nivelSelecionado == n;
+        return ChoiceChip(
+          label: Text(n),
+          selected: ativo,
+          onSelected: (_) => setState(() => nivelSelecionado = n),
+          selectedColor: const Color(0xFF8D0000),
+          backgroundColor: const Color(0xFFF5F5F5),
+          labelStyle: TextStyle(
+            color: ativo ? Colors.white : const Color(0xFF000000),
+            fontWeight: FontWeight.w600,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        );
+      }).toList(),
+    );
+  }
+
   Widget _buildListaArtes() {
     return ListView.builder(
       itemCount: artes.length,
       itemBuilder: (context, index) {
         final arte = artes[index];
-        final selecionada = selecionadas.containsKey(arte);
-        final nivelSelecionado = selecionadas[arte] ?? '';
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            GestureDetector(
-              onTap: () => selecionarArte(arte),
-              child: Container(
-                margin: const EdgeInsets.symmetric(vertical: 6),
-                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                decoration: BoxDecoration(
-                  color: selecionada ? const Color(0xFF8D0000).withOpacity(0.1) : Colors.white,
-                  borderRadius: BorderRadius.circular(30),
-                  border: Border.all(
-                    color: selecionada ? const Color(0xFF8D0000) : const Color(0xFFE0E0E0),
-                    width: 1.6,
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        arte,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: selecionada ? const Color(0xFF8D0000) : const Color(0xFF000000),
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (selecionada)
-                      GestureDetector(
-                        onTap: () => removerArte(arte),
-                        child: const Icon(Icons.close, size: 20, color: Color(0xFF8D0000)),
-                      ),
-                  ],
-                ),
+        final selecionada = selecionadas.contains(arte);
+        return GestureDetector(
+          onTap: () => selecionarArte(arte),
+          child: Container(
+            margin: const EdgeInsets.symmetric(vertical: 6),
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            decoration: BoxDecoration(
+              color: selecionada ? const Color(0xFF8D0000).withOpacity(0.1) : Colors.white,
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(
+                color: selecionada ? const Color(0xFF8D0000) : const Color(0xFFE0E0E0),
+                width: 1.6,
               ),
             ),
-            if (selecionada)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                child: Wrap(
-                  spacing: 12,
-                  children: niveis.map((n) {
-                    final ativo = nivelSelecionado == n;
-                    return ChoiceChip(
-                      label: Text(n),
-                      selected: ativo,
-                      onSelected: (_) => selecionarNivel(arte, n),
-                      selectedColor: const Color(0xFF8D0000),
-                      backgroundColor: const Color(0xFFF5F5F5),
-                      labelStyle: TextStyle(
-                        color: ativo ? Colors.white : const Color(0xFF000000),
-                        fontWeight: FontWeight.w600,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    );
-                  }).toList(),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  arte,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: selecionada ? const Color(0xFF8D0000) : const Color(0xFF000000),
+                  ),
                 ),
-              ),
-          ],
+                if (selecionada)
+                  const Icon(Icons.check, size: 20, color: Color(0xFF8D0000)),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -208,32 +210,25 @@ class _TelaArtesMarciaisState extends State<TelaArtesMarciais> {
       child: SizedBox(
         width: 220,
         height: 56,
-        child: ElevatedButton(
-          onPressed: podeAvancar ? () => Navigator.pushNamed(context, '/fotoperfil') : null,
-          style: ButtonStyle(
-            backgroundColor: MaterialStateProperty.resolveWith<Color>((states) {
-              if (states.contains(MaterialState.disabled)) {
-                return const Color(0xFF8D0000).withOpacity(0.5);
-              }
-              return const Color(0xFF8D0000);
-            }),
-            shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+        child: Opacity(
+          opacity: podeAvancar ? 1.0 : 0.5,
+          child: ElevatedButton(
+            onPressed: podeAvancar ? salvarEDefinirProximo : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF8D0000),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+              elevation: 4,
+              shadowColor: Colors.black12,
+              padding: const EdgeInsets.symmetric(vertical: 14),
             ),
-            elevation: MaterialStateProperty.resolveWith<double>((states) {
-              if (states.contains(MaterialState.disabled)) return 0;
-              return 4;
-            }),
-            shadowColor: MaterialStateProperty.all(Colors.black12),
-            padding: MaterialStateProperty.all(const EdgeInsets.symmetric(vertical: 14)),
-          ),
-          child: const Text(
-            'PRÓXIMO',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-              letterSpacing: 1.0,
+            child: const Text(
+              'PRÓXIMO',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+                letterSpacing: 1.0,
+              ),
             ),
           ),
         ),

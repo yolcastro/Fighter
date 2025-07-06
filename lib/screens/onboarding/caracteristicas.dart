@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fighter_app/usuario.service.dart';
 
 class TelaCaracteristicas extends StatefulWidget {
   const TelaCaracteristicas({super.key});
@@ -42,6 +44,44 @@ class _TelaCaracteristicasState extends State<TelaCaracteristicas> {
 
   bool get alturaValida =>
       erroAltura == null && (ultimaAlturaValida != null && ultimaAlturaValida!.isNotEmpty);
+
+  void avancar() {
+    // Obter UID do usuário logado
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nenhum usuário logado. Faça login novamente.')),
+      );
+      return;
+    }
+
+    // Preparar dados para atualização
+    final Map<String, dynamic> updateData = {
+      'pesoCategoria': categoriaPesoSelecionada,
+      'alturaEmCm': int.tryParse(ultimaAlturaValida ?? '0'),
+      'sexo': generoSelecionado,
+    };
+
+    print('Enviando updateData: $updateData');
+
+    // Chamar a função de atualização sem await e sem loading
+    UsuarioService.atualizarUsuario(currentUser.uid, updateData).then((success) {
+      if (success) {
+        print('Características atualizadas com sucesso para o UID: ${currentUser.uid}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Características atualizadas com sucesso!')),
+        );
+      } else {
+        print('Erro ao atualizar características para o UID: ${currentUser.uid}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erro ao atualizar características.')),
+        );
+      }
+    });
+
+    // Navegar imediatamente para a próxima tela
+    Navigator.pushNamed(context, '/preferencias');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -221,11 +261,7 @@ class _TelaCaracteristicasState extends State<TelaCaracteristicas> {
         width: 220,
         height: 56,
         child: ElevatedButton(
-          onPressed: alturaValida
-              ? () {
-                  Navigator.pushNamed(context, '/preferencias');
-                }
-              : null,
+          onPressed: alturaValida ? avancar : null,
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF8D0000),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
@@ -236,7 +272,7 @@ class _TelaCaracteristicasState extends State<TelaCaracteristicas> {
           child: const Text(
             'PRÓXIMO',
             style: TextStyle(
-              fontSize: 18,
+              fontSize: 15,
               fontWeight: FontWeight.w600,
               color: Colors.white,
               letterSpacing: 1.0,

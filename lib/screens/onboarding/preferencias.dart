@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'artes_marciais.dart';
+import 'artes_marciais.dart'; // ajuste conforme seu projeto
 
 class PreferenciasParceiroPage extends StatefulWidget {
   const PreferenciasParceiroPage({super.key});
@@ -9,12 +9,11 @@ class PreferenciasParceiroPage extends StatefulWidget {
 }
 
 class _PreferenciasParceiroPageState extends State<PreferenciasParceiroPage> {
-  Set<String> generosSelecionados = {'Feminino'};
-  RangeValues faixaEtaria = const RangeValues(18, 80);
-  Set<String> experienciasSelecionadas = {'Intermediário'};
-  Set<String> categoriasPesoSelecionadas = {'Peso Mosca (até 56,7kg)'};
+  String? sexoSelecionado = 'Feminino';
+  String? nivelExperienciaSelecionado = 'Intermediário';
+  String? categoriaPesoSelecionada = 'Peso Mosca (até 56,7kg)';
 
-  final generos = ['Masculino', 'Feminino', 'Outro'];
+  final sexos = ['Masculino', 'Feminino', 'Outro'];
   final niveis = ['Iniciante', 'Intermediário', 'Avançado'];
   final pesos = [
     'Peso Mosca (até 56,7kg)',
@@ -28,9 +27,22 @@ class _PreferenciasParceiroPageState extends State<PreferenciasParceiroPage> {
   ];
 
   bool get podeAvancar =>
-      generosSelecionados.isNotEmpty &&
-      experienciasSelecionadas.isNotEmpty &&
-      categoriasPesoSelecionadas.isNotEmpty;
+      sexoSelecionado != null &&
+      nivelExperienciaSelecionado != null &&
+      categoriaPesoSelecionada != null;
+
+  void _irParaTelaArtesMarciais() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TelaArtesMarciais(
+          sexo: sexoSelecionado,
+          nivelExperiencia: nivelExperienciaSelecionado,
+          pesoCategoria: categoriaPesoSelecionada,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,32 +71,23 @@ class _PreferenciasParceiroPageState extends State<PreferenciasParceiroPage> {
                   Expanded(
                     child: ListView(
                       children: [
-                        _buildCheckboxGroup('Gênero', generos, generosSelecionados),
+                        _buildCheckboxGroup('Sexo', sexos, sexoSelecionado, (value) {
+                          setState(() {
+                            sexoSelecionado = value;
+                          });
+                        }),
                         const SizedBox(height: 24),
-                        const Text(
-                          'Faixa etária',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
-                        RangeSlider(
-                          values: faixaEtaria,
-                          onChanged: (v) => setState(() => faixaEtaria = v),
-                          min: 18,
-                          max: 80,
-                          divisions: 62,
-                          activeColor: const Color(0xFF8D0000),
-                          labels: RangeLabels(
-                            '${faixaEtaria.start.round()} anos',
-                            '${faixaEtaria.end.round()} anos',
-                          ),
-                        ),
-                        Text(
-                          'De ${faixaEtaria.start.round()} até ${faixaEtaria.end.round()} anos',
-                          style: const TextStyle(fontSize: 14),
-                        ),
+                        _buildCheckboxGroup('Nível de experiência', niveis, nivelExperienciaSelecionado, (value) {
+                          setState(() {
+                            nivelExperienciaSelecionado = value;
+                          });
+                        }),
                         const SizedBox(height: 24),
-                        _buildCheckboxGroup('Nível de experiência', niveis, experienciasSelecionadas),
-                        const SizedBox(height: 24),
-                        _buildCheckboxGroup('Categoria de peso (UFC)', pesos, categoriasPesoSelecionadas),
+                        _buildCheckboxGroup('Categoria de peso (UFC)', pesos, categoriaPesoSelecionada, (value) {
+                          setState(() {
+                            categoriaPesoSelecionada = value;
+                          });
+                        }),
                       ],
                     ),
                   ),
@@ -94,18 +97,13 @@ class _PreferenciasParceiroPageState extends State<PreferenciasParceiroPage> {
                       width: 220,
                       height: 56,
                       child: ElevatedButton(
-                        onPressed: podeAvancar
-                            ? () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => const TelaArtesMarciais()),
-                                )
-                            : null,
+                        onPressed: podeAvancar ? _irParaTelaArtesMarciais : null,
                         style: ButtonStyle(
                           backgroundColor: MaterialStateProperty.resolveWith<Color>((states) {
                             if (states.contains(MaterialState.disabled)) {
-                              return const Color(0xFF8D0000).withOpacity(0.5); // vermelho claro desativado
+                              return const Color(0xFF8D0000).withOpacity(0.5);
                             }
-                            return const Color(0xFF8D0000); // vermelho normal ativo
+                            return const Color(0xFF8D0000);
                           }),
                           shape: MaterialStateProperty.all<RoundedRectangleBorder>(
                             RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
@@ -120,7 +118,7 @@ class _PreferenciasParceiroPageState extends State<PreferenciasParceiroPage> {
                         child: const Text(
                           'PRÓXIMO',
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: 15,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
                             letterSpacing: 1.0,
@@ -138,7 +136,8 @@ class _PreferenciasParceiroPageState extends State<PreferenciasParceiroPage> {
     );
   }
 
-  Widget _buildCheckboxGroup(String title, List<String> opcoes, Set<String> selecionadas) {
+  Widget _buildCheckboxGroup(
+      String title, List<String> opcoes, String? selecionado, Function(String?) onChanged) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -147,10 +146,14 @@ class _PreferenciasParceiroPageState extends State<PreferenciasParceiroPage> {
         ...opcoes.map(
           (opcao) => CheckboxListTile(
             title: Text(opcao, style: const TextStyle(fontSize: 14)),
-            value: selecionadas.contains(opcao),
-            onChanged: (val) => setState(() {
-              val! ? selecionadas.add(opcao) : selecionadas.remove(opcao);
-            }),
+            value: selecionado == opcao,
+            onChanged: (val) {
+              if (val == true) {
+                onChanged(opcao);
+              } else {
+                onChanged(null);
+              }
+            },
             activeColor: const Color(0xFF8D0000),
             contentPadding: EdgeInsets.zero,
             dense: true,
