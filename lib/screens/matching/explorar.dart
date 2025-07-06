@@ -10,7 +10,7 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 
 class Pessoa {
-  final String uid; // NOVO: Adicione o UID do usuário
+  final String id;
   final String nome;
   final int idade;
   final String foto;
@@ -23,7 +23,7 @@ class Pessoa {
   final String dataNascimento;
 
   Pessoa({
-    required this.uid, // NOVO: Adicione ao construtor
+    required this.id,
     required this.nome,
     required this.idade,
     required this.foto,
@@ -60,7 +60,7 @@ class Pessoa {
     }
 
     return Pessoa(
-      uid: json['uid'] ?? '', // NOVO: Parseie o UID da resposta da API
+      id: json['id'] ?? '',
       nome: json['nome'] ?? 'Nome Desconhecido',
       idade: calculatedAge,
       foto: (json['fotoPerfilUrl'] != null && json['fotoPerfilUrl'].toString().isNotEmpty)
@@ -78,10 +78,9 @@ class Pessoa {
 }
 
 class TelaExplorar extends StatefulWidget {
-  // Tornar os filtros não-nulos e usar um mapa vazio como padrão se nenhum for passado
   final Map<String, dynamic> filtros;
 
-  const TelaExplorar({super.key, this.filtros = const {}}); // Inicializa com um mapa vazio
+  const TelaExplorar({super.key, this.filtros = const {}});
 
   @override
   State<TelaExplorar> createState() => _TelaExplorarState();
@@ -90,7 +89,7 @@ class TelaExplorar extends StatefulWidget {
 class _TelaExplorarState extends State<TelaExplorar> {
   List<Pessoa> pessoas = [];
   int currentIndex = 0;
-  bool _isLoading = true; // Para gerenciar o estado de carregamento
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -98,67 +97,88 @@ class _TelaExplorarState extends State<TelaExplorar> {
     _fetchPessoas();
   }
 
-  // Método renomeado para ser mais claro
+  // Método para buscar pessoas, agora com filtro de likes
   Future<void> _fetchPessoas() async {
-  setState(() {
-    _isLoading = true;
-  });
-
-  // Obter o UID do usuário logado (ainda necessário para o filtro client-side)
-  final User? currentUser = FirebaseAuth.instance.currentUser;
-  final String? currentUid = currentUser?.uid;
-
-  // URL base da sua API
-  String baseUrl = 'https://e9f6-187-18-138-85.ngrok-free.app/api/usuarios/filtrar';
-
-  // Construir os parâmetros de consulta (REVERTIDO: NÃO inclua excludeUid aqui)
-  Map<String, String> queryParams = {};
-  if (widget.filtros != null) {
-    widget.filtros!.forEach((key, value) {
-      if (value != null && value.toString().isNotEmpty) {
-        // Mapeamento de chaves de filtro se necessário (mantido do ajuste anterior)
-        queryParams[key] = value.toString();
-      }
+    setState(() {
+      _isLoading = true;
     });
-  }
 
-  String queryString = Uri(queryParameters: queryParams).query;
-  String requestUrl = '$baseUrl?$queryString'; // Não há 'excludeUid' aqui
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    final String? currentUid = currentUser?.uid;
 
-  print('URL da Requisição: $requestUrl');
+    if (currentUid == null) {
+      print('Usuário não logado. Redirecionando para login.');
+      // Opcional: redirecionar para a tela de login se o UID for nulo
+      Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const TelaLogin()), (route) => false);
+      return;
+    }
 
-  try {
-    final response = await http.get(Uri.parse(requestUrl));
+    // 1. Obter lista de usuários que o 'currentUid' já deu like
+    List<String> likedUserIds = [];
+    try {
+      final likedUsersResponse = await http.get(
+        Uri.parse('https://e9f6-187-18-138-85.ngrok-free.app/api/likes/sent/$currentUid'),
+      );
 
-    if (response.statusCode == 200) {
-      List<dynamic> data = json.decode(response.body);
-      // Mapeia os dados JSON para objetos Pessoa
-      List<Pessoa> fetchedPessoas = data.map((json) => Pessoa.fromJson(json)).toList();
-
-      // NOVO: Filtragem client-side para não exibir o próprio usuário logado
-      if (currentUid != null) {
-        fetchedPessoas = fetchedPessoas.where((pessoa) => pessoa.uid != currentUid).toList();
+      if (likedUsersResponse.statusCode == 200) {
+        likedUserIds = List<String>.from(json.decode(likedUsersResponse.body));
+        print('Usuários já curtidos por $currentUid: $likedUserIds');
+      } else {
+        print('Erro ao buscar usuários curtidos: ${likedUsersResponse.statusCode} - ${likedUsersResponse.body}');
       }
+    } catch (e) {
+      print('Erro de rede ao buscar usuários curtidos: $e');
+    }
 
-      setState(() {
-        pessoas = fetchedPessoas; // Atualiza a lista com os usuários filtrados
-        _isLoading = false;
+    // 2. Buscar todos os usuários filtrados
+    String baseUrl = 'https://e9f6-187-18-138-85.ngrok-free.app/api/usuarios/filtrar';
+    Map<String, String> queryParams = {};
+    if (widget.filtros.isNotEmpty) {
+      widget.filtros.forEach((key, value) {
+        if (value != null && value.toString().isNotEmpty) {
+          queryParams[key] = value.toString();
+        }
       });
-    } else {
-      print('Erro na requisição: ${response.statusCode}');
-      print('Corpo da resposta: ${response.body}');
+    }
+
+    String queryString = Uri(queryParameters: queryParams).query;
+    String requestUrl = '$baseUrl?$queryString';
+
+    print('URL da Requisição: $requestUrl');
+
+    try {
+      final response = await http.get(Uri.parse(requestUrl));
+
+      if (response.statusCode == 200) {
+        List<dynamic> data = json.decode(response.body);
+        List<Pessoa> fetchedPessoas = data.map((json) => Pessoa.fromJson(json)).toList();
+
+        // 3. Filtrar: remover o próprio usuário e usuários já curtidos
+        fetchedPessoas = fetchedPessoas.where((pessoa) =>
+            pessoa.id != currentUid && // Remove o próprio usuário
+            !likedUserIds.contains(pessoa.id) // Remove usuários já curtidos
+        ).toList();
+
+        setState(() {
+          pessoas = fetchedPessoas;
+          currentIndex = 0; // Reinicia o índice para o primeiro perfil após a filtragem
+          _isLoading = false;
+        });
+        print('Pessoas após filtragem: ${pessoas.map((p) => p.nome).toList()}');
+      } else {
+        print('Erro na requisição: ${response.statusCode}');
+        print('Corpo da resposta: ${response.body}');
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Erro ao carregar pessoas: $e');
       setState(() {
         _isLoading = false;
       });
     }
-  } catch (e) {
-    print('Erro ao carregar pessoas: $e');
-    setState(() {
-      _isLoading = false;
-    });
   }
-}
-
 
   String categoriaPesoUFC(int peso) {
     if (peso <= 56) return 'Peso Mosca';
@@ -175,8 +195,10 @@ class _TelaExplorarState extends State<TelaExplorar> {
   Future<void> _like() async {
     if (currentIndex < pessoas.length) {
       final User? currentUser = FirebaseAuth.instance.currentUser;
-      final String? senderId = currentUser?.uid; // Obtém o UID do usuário logado
-      final String receiverId = pessoas[currentIndex].uid; // UID da pessoa que recebeu o like
+      final String? senderId = currentUser?.uid;
+      final String receiverId = pessoas[currentIndex].id;
+      print('DEBUG: SenderId being sent: $senderId');
+      print('DEBUG: ReceiverId being sent: $receiverId');
 
       if (senderId == null || senderId.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -185,57 +207,116 @@ class _TelaExplorarState extends State<TelaExplorar> {
         return;
       }
 
-      // URL da API para criar o like
-      final Uri uri = Uri.parse(
+       final Uri likeUri = Uri.parse(
         'https://e9f6-187-18-138-85.ngrok-free.app/api/likes/create'
         '?senderId=$senderId&receiverId=$receiverId',
       );
 
       try {
-        final response = await http.post(
-          uri,
+        final likeResponse = await http.post(
+          likeUri,
         );
 
-        if (response.statusCode == 200 || response.statusCode == 201) {
-          // Sucesso no envio do like
+        if (likeResponse.statusCode == 200 || likeResponse.statusCode == 201) {
           print('Like enviado com sucesso de $senderId para $receiverId');
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Like enviado!')),
           );
-        }
-        else {
-          // Erro no envio do like
-          print('Erro ao enviar like: ${response.statusCode} - ${response.body}');
+
+          // NOVO: Verificar se houve um match
+          try {
+            final Uri checkMatchUri = Uri.parse(
+              'https://e9f6-187-18-138-85.ngrok-free.app/api/likes/check?senderId=$receiverId&receiverId=$senderId',
+            );
+            final checkMatchResponse = await http.get(checkMatchUri);
+
+            if (checkMatchResponse.statusCode == 200) {
+              final bool isMatch = json.decode(checkMatchResponse.body);
+              if (isMatch) {
+                print('MATCH! $senderId e $receiverId deram match!');
+                // Navegar para a TelaMatch
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => TelaMatch(
+                      nome1: 'Você', // Substitua pelo nome do usuário logado
+                      foto1: 'assets/usuario.jpg', // Substitua pela foto do usuário logado
+                      nome2: pessoas[currentIndex].nome,
+                      foto2: pessoas[currentIndex].foto,
+                    ),
+                  ),
+                );
+              } else {
+                print('Não houve match com ${pessoas[currentIndex].nome}.');
+              }
+            } else {
+              print('Erro ao verificar match: ${checkMatchResponse.statusCode} - ${checkMatchResponse.body}');
+            }
+          } catch (e) {
+            print('Erro na requisição de verificação de match: $e');
+          }
+
+          // A pessoa que acabou de ser curtida deve ser removida da lista.
+          // Em vez de _fetchPessoas completo, podemos remover localmente
+          // e ajustar o currentIndex, ou chamar _fetchPessoas para garantir consistência.
+          // Para esta solução, vamos remover localmente e depois avançar.
+          setState(() {
+            pessoas.removeAt(currentIndex); // Remove o perfil curtido
+            // Não incrementamos currentIndex aqui, pois removemos o item atual,
+            // e o próximo item já estará na posição 'currentIndex'.
+            // Se a lista ficar vazia, a interface de "sem mais perfis" será mostrada.
+          });
+          // Se a lista ficou vazia após a remoção, exibe a mensagem
+          if (pessoas.isEmpty) {
+            _showNoMoreProfilesMessage();
+          }
+
+        } else {
+          print('Erro ao enviar like: ${likeResponse.statusCode} - ${likeResponse.body}');
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Erro ao enviar like: ${response.statusCode}')),
+            SnackBar(content: Text('Erro ao enviar like: ${likeResponse.statusCode}')),
           );
+          // Ainda avança para o próximo perfil mesmo com erro no like,
+          // mas o perfil com erro será filtrado na próxima recarga de _fetchPessoas
+          setState(() {
+            currentIndex++;
+          });
         }
       } catch (e) {
-        // Erro de rede ou outro
         print('Erro na requisição de like: $e');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erro de rede ao enviar like: $e')),
         );
+        setState(() {
+            currentIndex++;
+          });
       }
-
-      // Avança para o próximo perfil, independentemente do sucesso do like ou match
-      setState(() {
-        currentIndex++;
-      });
     } else {
       _showNoMoreProfilesMessage();
     }
   }
 
   void _dislike() {
-    if (currentIndex < pessoas.length - 1) {
-      setState(() => currentIndex++);
+    if (currentIndex < pessoas.length) {
+      setState(() {
+        pessoas.removeAt(currentIndex); // Remove o perfil descartado
+      });
+      if (pessoas.isEmpty) {
+        _showNoMoreProfilesMessage();
+      }
+      // Não incrementamos currentIndex aqui
     } else {
       _showNoMoreProfilesMessage();
     }
   }
 
   void _showNoMoreProfilesMessage() {
+    // Redefine currentIndex para 0 quando não há mais perfis
+    // para que a mensagem de "nenhum parceiro encontrado" seja exibida corretamente
+    setState(() {
+      currentIndex = 0;
+    });
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Não há mais perfis para mostrar.'),
@@ -272,9 +353,9 @@ class _TelaExplorarState extends State<TelaExplorar> {
               ),
               TextButton(
                 onPressed: () async {
-                  await FirebaseAuth.instance.signOut(); // Deslogar do Firebase
+                  await FirebaseAuth.instance.signOut();
                   if (mounted) {
-                    Navigator.pop(context, true); // Fecha o diálogo
+                    Navigator.pop(context, true);
                   }
                 },
                 child: const Text('Sair', style: TextStyle(color: Color(0xFF8B2E2E))),
@@ -287,28 +368,27 @@ class _TelaExplorarState extends State<TelaExplorar> {
 
     if (confirmar == true) {
       if (mounted) {
-        // Usa pushNamedAndRemoveUntil para limpar a pilha de navegação
         Navigator.pushNamedAndRemoveUntil(
           context,
-          '/login', // Rota para a tela de login
-          (route) => false, // Remove todas as rotas anteriores
+          '/login',
+          (route) => false,
         );
       }
     }
   }
 
   Future<bool> _onWillPop() async {
-    exit(0); // Força a saída do aplicativo
+    exit(0);
   }
 
   Widget _buildPerfil() {
     if (_isLoading) {
       return const Center(
-        child: CircularProgressIndicator(), // Indicador de carregamento
+        child: CircularProgressIndicator(),
       );
     }
 
-    if (pessoas.isEmpty || currentIndex >= pessoas.length) {
+    if (pessoas.isEmpty) { // Alterado para verificar se a lista está vazia
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -337,8 +417,7 @@ class _TelaExplorarState extends State<TelaExplorar> {
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: () {
-                // Navegar para uma tela de filtros ou limpar filtros e recarregar
-                _fetchPessoas(); // Recarregar sem filtros se quiser
+                _fetchPessoas();
               },
               icon: const Icon(Icons.refresh, color: Colors.white),
               label: const Text('Recarregar', style: TextStyle(color: Colors.white)),
@@ -352,6 +431,7 @@ class _TelaExplorarState extends State<TelaExplorar> {
       );
     }
 
+    // Se houver pessoas, exibe o perfil na posição atual do currentIndex
     final pessoa = pessoas[currentIndex];
 
     return SingleChildScrollView(
@@ -510,7 +590,6 @@ class _TelaExplorarState extends State<TelaExplorar> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top bar
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
