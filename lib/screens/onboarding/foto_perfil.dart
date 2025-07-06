@@ -16,6 +16,19 @@ class _TelaFotoDescricaoState extends State<TelaFotoDescricao> {
   final TextEditingController _descricaoController = TextEditingController();
   File? _imagemSelecionada;
 
+  // Variável para armazenar os filtros recebidos
+  Map<String, dynamic>? _filtrosRecebidos;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Captura os argumentos passados pela rota
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map<String, dynamic>) {
+      _filtrosRecebidos = args;
+    }
+  }
+
   Future<void> _escolherImagem() async {
     final picked = await _picker.pickImage(source: ImageSource.gallery);
     if (picked != null) {
@@ -47,7 +60,7 @@ class _TelaFotoDescricaoState extends State<TelaFotoDescricao> {
 
     final Map<String, dynamic> updateData = {
       'descricao': _descricaoController.text.trim(),
-      'fotoPerfilUrl': _imagemSelecionada?.path ?? '',
+      'fotoPerfilUrl': _imagemSelecionada?.path ?? '', // Idealmente, você faria o upload da imagem e armazenaria a URL aqui
     };
 
     UsuarioService.atualizarUsuario(currentUser.uid, updateData).then((success) {
@@ -56,6 +69,8 @@ class _TelaFotoDescricaoState extends State<TelaFotoDescricao> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Perfil atualizado com sucesso!')),
         );
+        // Passa os filtros (incluindo os da tela anterior) para a próxima tela
+        Navigator.pushNamed(context, '/boasvindas', arguments: _filtrosRecebidos);
       } else {
         print('Erro ao salvar descrição e foto para ${currentUser.uid}');
         ScaffoldMessenger.of(context).showSnackBar(
@@ -63,8 +78,6 @@ class _TelaFotoDescricaoState extends State<TelaFotoDescricao> {
         );
       }
     });
-
-    Navigator.pushNamed(context, '/boasvindas');
   }
 
   @override

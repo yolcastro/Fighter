@@ -5,6 +5,9 @@ class TelaBoasVindas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Captura os argumentos passados pela rota (os filtros)
+    final Map<String, dynamic>? filtros = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+
     return Scaffold(
       backgroundColor: const Color(0xFFEFEFEF),
       body: SafeArea(
@@ -66,10 +69,12 @@ class TelaBoasVindas extends StatelessWidget {
                   height: 56,
                   child: ElevatedButton(
                     onPressed: () {
+                      // Passa os filtros para a TelaExplorar
                       Navigator.pushNamedAndRemoveUntil(
                         context,
                         '/explorar',
                         (route) => false,
+                        arguments: filtros, // Passa os filtros aqui
                       );
                     },
                     style: ElevatedButton.styleFrom(

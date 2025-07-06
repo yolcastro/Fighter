@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'match.dart';
 import '../auth/login.dart';
@@ -6,8 +7,10 @@ import 'historico_conversas.dart';
 import 'perfil_usuario.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:intl/intl.dart';
 
 class Pessoa {
+  final String uid; // NOVO: Adicione o UID do usuário
   final String nome;
   final int idade;
   final String foto;
@@ -17,8 +20,10 @@ class Pessoa {
   final int peso;
   final String descricao;
   final List<String> modalidades;
+  final String dataNascimento;
 
   Pessoa({
+    required this.uid, // NOVO: Adicione ao construtor
     required this.nome,
     required this.idade,
     required this.foto,
@@ -28,27 +33,55 @@ class Pessoa {
     required this.peso,
     required this.descricao,
     required this.modalidades,
+    required this.dataNascimento,
   });
 
   factory Pessoa.fromJson(Map<String, dynamic> json) {
+    const String defaultPlaceholderImage = 'https://via.placeholder.com/150';
+
+    int calculatedAge = 0;
+    String rawDataNascimento = json['dataNascimento'] ?? '';
+
+    if (rawDataNascimento.isNotEmpty) {
+      try {
+        DateTime birthDate = DateFormat('dd/MM/yyyy').parse(rawDataNascimento);
+        DateTime today = DateTime.now();
+        calculatedAge = today.year - birthDate.year;
+        if (today.month < birthDate.month ||
+            (today.month == birthDate.month && today.day < birthDate.day)) {
+          calculatedAge--;
+        }
+        if (calculatedAge < 0) {
+          calculatedAge = 0;
+        }
+      } catch (e) {
+        print('Erro ao parsear data de nascimento "$rawDataNascimento" com formato dd/MM/AAAA: $e');
+      }
+    }
+
     return Pessoa(
-      nome: json['nome'],
-      idade: json['idade'],
-      foto: json['foto'], // ajuste conforme seu backend
-      local: json['local'],
-      genero: json['sexo'],
-      altura: json['altura'],
-      peso: json['peso'],
-      descricao: json['descricao'],
-      modalidades: List<String>.from(json['modalidades']),
+      uid: json['uid'] ?? '', // NOVO: Parseie o UID da resposta da API
+      nome: json['nome'] ?? 'Nome Desconhecido',
+      idade: calculatedAge,
+      foto: (json['fotoPerfilUrl'] != null && json['fotoPerfilUrl'].toString().isNotEmpty)
+          ? json['fotoPerfilUrl']
+          : defaultPlaceholderImage,
+      local: json['localizacao'] ?? 'Local Desconhecido',
+      genero: json['sexo'] ?? 'Não informado',
+      altura: json['alturaEmCm'] ?? 0,
+      peso: json['peso'] ?? 0,
+      descricao: json['descricao'] ?? 'Sem descrição.',
+      modalidades: List<String>.from(json['arteMarcial'] ?? []),
+      dataNascimento: rawDataNascimento,
     );
   }
 }
 
 class TelaExplorar extends StatefulWidget {
-  final Map<String, dynamic>? filtros;
+  // Tornar os filtros não-nulos e usar um mapa vazio como padrão se nenhum for passado
+  final Map<String, dynamic> filtros;
 
-  const TelaExplorar({super.key, this.filtros});
+  const TelaExplorar({super.key, this.filtros = const {}}); // Inicializa com um mapa vazio
 
   @override
   State<TelaExplorar> createState() => _TelaExplorarState();
@@ -57,36 +90,75 @@ class TelaExplorar extends StatefulWidget {
 class _TelaExplorarState extends State<TelaExplorar> {
   List<Pessoa> pessoas = [];
   int currentIndex = 0;
+  bool _isLoading = true; // Para gerenciar o estado de carregamento
 
   @override
   void initState() {
     super.initState();
-    _buscarUsuariosFiltrados();
+    _fetchPessoas();
   }
 
-  Future<void> _buscarUsuariosFiltrados() async {
-    final filtros = widget.filtros ?? {};
-    final queryParams = filtros.entries
-        .where((entry) => entry.value != null && entry.value.toString().isNotEmpty)
-        .map((entry) => '${entry.key}=${Uri.encodeComponent(entry.value.toString())}')
-        .join('&');
+  // Método renomeado para ser mais claro
+  Future<void> _fetchPessoas() async {
+  setState(() {
+    _isLoading = true;
+  });
 
-    final url = Uri.parse('https://e9f6-187-18-138-85.ngrok-free.app/api/usuarios/filtrar?$queryParams');
+  // Obter o UID do usuário logado (ainda necessário para o filtro client-side)
+  final User? currentUser = FirebaseAuth.instance.currentUser;
+  final String? currentUid = currentUser?.uid;
 
-    try {
-      final response = await http.get(url);
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        setState(() {
-          pessoas = data.map((json) => Pessoa.fromJson(json)).toList();
-        });
-      } else {
-        print('Erro ao buscar usuários: ${response.statusCode}');
+  // URL base da sua API
+  String baseUrl = 'https://e9f6-187-18-138-85.ngrok-free.app/api/usuarios/filtrar';
+
+  // Construir os parâmetros de consulta (REVERTIDO: NÃO inclua excludeUid aqui)
+  Map<String, String> queryParams = {};
+  if (widget.filtros != null) {
+    widget.filtros!.forEach((key, value) {
+      if (value != null && value.toString().isNotEmpty) {
+        // Mapeamento de chaves de filtro se necessário (mantido do ajuste anterior)
+        queryParams[key] = value.toString();
       }
-    } catch (e) {
-      print('Erro: $e');
-    }
+    });
   }
+
+  String queryString = Uri(queryParameters: queryParams).query;
+  String requestUrl = '$baseUrl?$queryString'; // Não há 'excludeUid' aqui
+
+  print('URL da Requisição: $requestUrl');
+
+  try {
+    final response = await http.get(Uri.parse(requestUrl));
+
+    if (response.statusCode == 200) {
+      List<dynamic> data = json.decode(response.body);
+      // Mapeia os dados JSON para objetos Pessoa
+      List<Pessoa> fetchedPessoas = data.map((json) => Pessoa.fromJson(json)).toList();
+
+      // NOVO: Filtragem client-side para não exibir o próprio usuário logado
+      if (currentUid != null) {
+        fetchedPessoas = fetchedPessoas.where((pessoa) => pessoa.uid != currentUid).toList();
+      }
+
+      setState(() {
+        pessoas = fetchedPessoas; // Atualiza a lista com os usuários filtrados
+        _isLoading = false;
+      });
+    } else {
+      print('Erro na requisição: ${response.statusCode}');
+      print('Corpo da resposta: ${response.body}');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  } catch (e) {
+    print('Erro ao carregar pessoas: $e');
+    setState(() {
+      _isLoading = false;
+    });
+  }
+}
+
 
   String categoriaPesoUFC(int peso) {
     if (peso <= 56) return 'Peso Mosca';
@@ -102,13 +174,14 @@ class _TelaExplorarState extends State<TelaExplorar> {
 
   Future<void> _like() async {
     if (currentIndex < pessoas.length) {
+      // Exemplo de match com Marina, mantenha sua lógica de match real
       if (pessoas[currentIndex].nome == 'Marina') {
         await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => TelaMatch(
-              nome1: 'Você',
-              foto1: 'assets/usuario.jpg',
+              nome1: 'Você', // Substitua pelo nome do usuário logado
+              foto1: 'assets/usuario.jpg', // Substitua pela foto do usuário logado
               nome2: pessoas[currentIndex].nome,
               foto2: pessoas[currentIndex].foto,
             ),
@@ -116,6 +189,8 @@ class _TelaExplorarState extends State<TelaExplorar> {
         );
       }
       setState(() => currentIndex++);
+    } else {
+      _showNoMoreProfilesMessage();
     }
   }
 
@@ -123,16 +198,20 @@ class _TelaExplorarState extends State<TelaExplorar> {
     if (currentIndex < pessoas.length - 1) {
       setState(() => currentIndex++);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Não há mais perfis para mostrar.'),
-          backgroundColor: const Color(0xFF8B2E2E),
-          duration: const Duration(seconds: 3),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+      _showNoMoreProfilesMessage();
     }
+  }
+
+  void _showNoMoreProfilesMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Não há mais perfis para mostrar.'),
+        backgroundColor: const Color(0xFF8B2E2E),
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
   }
 
   Future<void> _confirmarSaida() async {
@@ -159,7 +238,12 @@ class _TelaExplorarState extends State<TelaExplorar> {
                 child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
               ),
               TextButton(
-                onPressed: () => Navigator.pop(context, true),
+                onPressed: () async {
+                  await FirebaseAuth.instance.signOut(); // Deslogar do Firebase
+                  if (mounted) {
+                    Navigator.pop(context, true); // Fecha o diálogo
+                  }
+                },
                 child: const Text('Sair', style: TextStyle(color: Color(0xFF8B2E2E))),
               ),
             ],
@@ -169,26 +253,36 @@ class _TelaExplorarState extends State<TelaExplorar> {
     );
 
     if (confirmar == true) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const TelaLogin()),
-      );
+      if (mounted) {
+        // Usa pushNamedAndRemoveUntil para limpar a pilha de navegação
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/login', // Rota para a tela de login
+          (route) => false, // Remove todas as rotas anteriores
+        );
+      }
     }
   }
 
   Future<bool> _onWillPop() async {
-    exit(0);
+    exit(0); // Força a saída do aplicativo
   }
 
   Widget _buildPerfil() {
-    if (currentIndex >= pessoas.length) {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(), // Indicador de carregamento
+      );
+    }
+
+    if (pessoas.isEmpty || currentIndex >= pessoas.length) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            Text('🥊', style: TextStyle(fontSize: 50)),
-            SizedBox(height: 16),
-            Text(
+          children: [
+            const Text('🥊', style: TextStyle(fontSize: 50)),
+            const SizedBox(height: 16),
+            const Text(
               'Nenhum parceiro encontrado\ncom esses filtros.',
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -198,13 +292,26 @@ class _TelaExplorarState extends State<TelaExplorar> {
                 height: 1.4,
               ),
             ),
-            SizedBox(height: 12),
-            Text(
+            const SizedBox(height: 12),
+            const Text(
               'Tente ajustar seus filtros\npara encontrar mais parceiros!',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 15,
                 color: Colors.black45,
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () {
+                // Navegar para uma tela de filtros ou limpar filtros e recarregar
+                _fetchPessoas(); // Recarregar sem filtros se quiser
+              },
+              icon: const Icon(Icons.refresh, color: Colors.white),
+              label: const Text('Recarregar', style: TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF8B2E2E),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
               ),
             ),
           ],
@@ -383,67 +490,37 @@ class _TelaExplorarState extends State<TelaExplorar> {
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: Color(0xFF8B2E2E),
                           ),
                         ),
                       ],
                     ),
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Colors.black12,
-                                  blurRadius: 6,
-                                  offset: Offset(0, 2),
-                                )
-                              ],
-                            ),
-                            child: const Icon(Icons.person, color: Color(0xFF8B2E2E)),
-                          ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const PerfilUsuarioPage()),
-                            );
-                          },
-                          tooltip: 'Perfil',
-                        ),
-                        const SizedBox(width: 12),
-                        IconButton(
-                          icon: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Colors.black12,
-                                  blurRadius: 6,
-                                  offset: Offset(0, 2),
-                                )
-                              ],
-                            ),
-                            child: const Icon(Icons.chat_bubble_outline, color: Color(0xFF8B2E2E)),
-                          ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => TelaHistoricoChats()),
-                            );
-                          },
-                          tooltip: 'Conversas',
-                        ),
-                      ],
+                    IconButton(
+                      icon: const Icon(Icons.chat_bubble_outline, color: Color(0xFF8B2E2E)),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const TelaHistoricoChats()),
+                        );
+                      },
+                      splashRadius: 24,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.person_outline, color: Color(0xFF8B2E2E)),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const PerfilUsuarioPage()),
+                        );
+                      },
+                      splashRadius: 24,
                     ),
                   ],
                 ),
-                const SizedBox(height: 24),
-                // Perfil ou mensagem de vazio
-                Expanded(child: _buildPerfil()),
+                const SizedBox(height: 20),
+                Expanded(
+                  child: _buildPerfil(),
+                ),
               ],
             ),
           ),
