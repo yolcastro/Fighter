@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:fighter_app/usuario.service.dart';
-import 'localizacao.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Importe o Firebase Auth para obter o UID
+import 'package:fighter_app/usuario.service.dart'; // Certifique-se de que o caminho está correto
+import 'localizacao.dart'; // Assumindo que esta é a próxima tela
+import 'package:fighter_app/screens/auth/checagem.dart';
 
 class TelaDataNascimento extends StatefulWidget {
   const TelaDataNascimento({super.key});
@@ -14,15 +16,67 @@ class _TelaDataNascimentoState extends State<TelaDataNascimento> {
   String? mes = 'janeiro';
   String? ano = '2000';
 
-  final dias = List.generate(31, (i) => '${i + 1}');
-  final meses = [
+  final List<String> dias = List.generate(31, (i) => '${i + 1}');
+  final List<String> meses = [
     'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
     'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
   ];
-  final anos = List.generate(100, (i) => '${DateTime.now().year - i}');
+  final List<String> anos = List.generate(100, (i) => '${DateTime.now().year - i}');
 
   int obterNumeroMes(String mes) {
     return meses.indexOf(mes) + 1;
+  }
+
+  // Função para lidar com a atualização da data de nascimento
+  Future<void> _salvarDataNascimento() async {
+    // 1. Obter o UID do usuário logado
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nenhum usuário logado. Por favor, faça login.')),
+      );
+      return;
+    }
+
+    if (dia == null || mes == null || ano == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecione sua data de nascimento')),
+      );
+      return;
+    }
+
+    final numeroMes = obterNumeroMes(mes!);
+    // 2. Formatar a data para DD/MM/AAAA, como esperado pela sua API
+    final String dataNascimentoFormatada = '${dia!.padLeft(2, '0')}/${numeroMes.toString().padLeft(2, '0')}/$ano';
+
+    // Dados a serem enviados para a API (apenas a data de nascimento neste caso)
+    final Map<String, dynamic> updateData = {
+      'dataNascimento': dataNascimentoFormatada,
+      // Se sua API exigir outros campos no PUT mesmo para atualização parcial,
+      // você precisará coletá-los e adicioná-los aqui.
+      // Exemplo: 'nome': 'Nome do Usuário', 'email': 'email@exemplo.com',
+    };
+
+    // 3. Chamar a função de atualização do UsuarioService
+    bool success = await UsuarioService.atualizarUsuario(currentUser.uid, updateData);
+
+    if (success) {
+      print('Data de nascimento atualizada com sucesso para o UID: ${currentUser.uid}');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Data de Nascimento atualizada com sucesso!')),
+      );
+      // Navegar para a próxima tela após o sucesso
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const TelaLocalizacao()),
+      );
+    } else {
+      print('Erro ao atualizar data de nascimento para o UID: ${currentUser.uid}');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Erro ao atualizar data de nascimento.')),
+      );
+    }
   }
 
   @override
@@ -131,44 +185,8 @@ class _TelaDataNascimentoState extends State<TelaDataNascimento> {
         width: 220,
         height: 56,
         child: ElevatedButton(
-          onPressed: () async {
-            if (dia == null || mes == null || ano == null) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Selecione sua data de nascimento')),
-              );
-              return;
-            }
-
-            final numeroMes = obterNumeroMes(mes!);
-            final dataNascimento = '$ano-${numeroMes.toString().padLeft(2, '0')}-${dia!.padLeft(2, '0')}';
-
-            String? uid = await UsuarioService.criarUsuario({
-              'nome': 'Seu Nome',
-              'email': 'exemplo@email.com',
-              'sexo': 'Masculino',
-              'pesoCategoria': 'Leve',
-              'alturaEmCm': 175,
-              'arteMarcial': ['Muay Thai'],
-              'nivelExperiencia': 'Iniciante',
-              'localizacao': 'São Paulo',
-              'fotoPerfilUrl': 'https://link-da-foto.jpg',
-              'descricao': 'Descrição exemplo',
-              'dataNascimento': dataNascimento,
-            });
-
-            if (uid != null) {
-              print('Usuário criado com UID: $uid');
-
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const TelaLocalizacao()),
-              );
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Erro ao criar usuário.')),
-              );
-            }
-          },
+          // Chama a nova função _salvarDataNascimento()
+          onPressed: _salvarDataNascimento,
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF8D0000),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
