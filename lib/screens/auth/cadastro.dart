@@ -1,8 +1,75 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:firebase_auth/firebase_auth.dart'; // Importe o Firebase Auth
 
-import '../onboarding/quase_la.dart';
+import '../onboarding/quase_la.dart'; // Certifique-se de que o caminho está correto
+
+// Uma classe simples para a tela de erro de cadastro, caso ainda não exista
+class TelaErroCadastro extends StatelessWidget {
+  final String mensagem;
+
+  const TelaErroCadastro({super.key, required this.mensagem});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFEFEFEF),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFEFEFEF),
+        elevation: 0,
+        automaticallyImplyLeading: false,
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 80, color: Color(0xFF8D0000)),
+              const SizedBox(height: 20),
+              const Text(
+                'Erro no cadastro',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Color.fromARGB(255, 0, 0, 0),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                mensagem,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Color(0xFF343434),
+                ),
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF8D0000),
+                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(50),
+                  ),
+                ),
+                child: const Text(
+                  'Voltar',
+                  style: TextStyle(fontSize: 18, color: Colors.white),
+                ),
+              )
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 
 class TelaCadastro extends StatefulWidget {
   const TelaCadastro({super.key});
@@ -74,12 +141,50 @@ class _TelaCadastroState extends State<TelaCadastro> {
       print('Response body: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        // Cadastro bem-sucedido
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const TelaQuaseLa()),
-        );
+        // Cadastro bem-sucedido na sua API
+        mostrarMensagem('Cadastro realizado com sucesso na API! Tentando login no Firebase...');
+
+        try {
+          // Tenta fazer login no Firebase Authentication com as mesmas credenciais
+          await FirebaseAuth.instance.signInWithEmailAndPassword(
+            email: email,
+            password: password,
+          );
+          // Se o login no Firebase for bem-sucedido
+          print('Login automático no Firebase bem-sucedido!');
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const TelaQuaseLa()),
+          );
+        } on FirebaseAuthException catch (e) {
+          // Erro no login do Firebase
+          String firebaseErrorMessage = 'Erro desconhecido no login do Firebase.';
+          if (e.code == 'user-not-found') {
+            firebaseErrorMessage = 'Usuário não encontrado no Firebase (pode ser um atraso na criação).';
+          } else if (e.code == 'wrong-password') {
+            firebaseErrorMessage = 'Credenciais inválidas no Firebase.';
+          } else if (e.code == 'network-request-failed') {
+            firebaseErrorMessage = 'Problema de conexão ao tentar logar no Firebase.';
+          }
+          print('Erro no login automático do Firebase: ${e.code} - ${e.message}');
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => TelaErroCadastro(mensagem: 'Erro no login automático: $firebaseErrorMessage'),
+            ),
+          );
+        } catch (e) {
+          // Outros erros inesperados no login do Firebase
+          print('Exceção inesperada no login do Firebase: $e');
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const TelaErroCadastro(mensagem: 'Erro inesperado ao tentar logar no Firebase.'),
+            ),
+          );
+        }
       } else {
+        // Erro no cadastro da sua API
         final Map<String, dynamic> responseBody = jsonDecode(response.body);
 
         String mensagemErro = 'Erro ao cadastrar: ${response.statusCode}';
@@ -97,11 +202,11 @@ class _TelaCadastroState extends State<TelaCadastro> {
         );
       }
     } catch (e) {
-      // Erro de conexão
+      // Erro de conexão com a sua API
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => const TelaErroCadastro(mensagem: 'Erro de conexão.'),
+          builder: (context) => const TelaErroCadastro(mensagem: 'Erro de conexão com a API de cadastro.'),
         ),
       );
       print('Exception: $e');
@@ -245,70 +350,6 @@ class _TelaCadastroState extends State<TelaCadastro> {
             fontSize: 18,
             fontWeight: FontWeight.w600,
             color: Colors.white,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class TelaErroCadastro extends StatelessWidget {
-  final String mensagem;
-
-  const TelaErroCadastro({super.key, required this.mensagem});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFEFEFEF),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFEFEFEF),
-        elevation: 0,
-        automaticallyImplyLeading: false, // remove a setinha
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 80, color: Color(0xFF8D0000)), // cor mais escura
-              const SizedBox(height: 20),
-              const Text(
-                'Erro no cadastro',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Color.fromARGB(255, 0, 0, 0),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                mensagem,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: Color(0xFF343434),
-                ),
-              ),
-              const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF8D0000),
-                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(50),
-                  ),
-                ),
-                child: const Text(
-                  'Voltar',
-                  style: TextStyle(fontSize: 18, color: Colors.white),
-                ),
-              )
-            ],
           ),
         ),
       ),
