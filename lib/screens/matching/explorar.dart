@@ -37,7 +37,7 @@ class Pessoa {
   });
 
   factory Pessoa.fromJson(Map<String, dynamic> json) {
-    const String defaultPlaceholderImage = 'https://via.placeholder.com/150';
+    const String defaultPlaceholderImage = 'https://e-quester.com/placeholder-image-person-jpg/';
 
     int calculatedAge = 0;
     String rawDataNascimento = json['dataNascimento'] ?? '';
@@ -174,21 +174,54 @@ class _TelaExplorarState extends State<TelaExplorar> {
 
   Future<void> _like() async {
     if (currentIndex < pessoas.length) {
-      // Exemplo de match com Marina, mantenha sua lógica de match real
-      if (pessoas[currentIndex].nome == 'Marina') {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => TelaMatch(
-              nome1: 'Você', // Substitua pelo nome do usuário logado
-              foto1: 'assets/usuario.jpg', // Substitua pela foto do usuário logado
-              nome2: pessoas[currentIndex].nome,
-              foto2: pessoas[currentIndex].foto,
-            ),
-          ),
+      final User? currentUser = FirebaseAuth.instance.currentUser;
+      final String? senderId = currentUser?.uid; // Obtém o UID do usuário logado
+      final String receiverId = pessoas[currentIndex].uid; // UID da pessoa que recebeu o like
+
+      if (senderId == null || senderId.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erro: ID do remetente não encontrado. Faça login novamente.')),
+        );
+        return;
+      }
+
+      // URL da API para criar o like
+      final Uri uri = Uri.parse(
+        'https://e9f6-187-18-138-85.ngrok-free.app/api/likes/create'
+        '?senderId=$senderId&receiverId=$receiverId',
+      );
+
+      try {
+        final response = await http.post(
+          uri,
+        );
+
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          // Sucesso no envio do like
+          print('Like enviado com sucesso de $senderId para $receiverId');
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Like enviado!')),
+          );
+        }
+        else {
+          // Erro no envio do like
+          print('Erro ao enviar like: ${response.statusCode} - ${response.body}');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erro ao enviar like: ${response.statusCode}')),
+          );
+        }
+      } catch (e) {
+        // Erro de rede ou outro
+        print('Erro na requisição de like: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro de rede ao enviar like: $e')),
         );
       }
-      setState(() => currentIndex++);
+
+      // Avança para o próximo perfil, independentemente do sucesso do like ou match
+      setState(() {
+        currentIndex++;
+      });
     } else {
       _showNoMoreProfilesMessage();
     }
