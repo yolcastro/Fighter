@@ -1,14 +1,11 @@
-// artes_marciais.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fighter_app/usuario.service.dart'; // ajuste conforme seu projeto
-// Certifique-se de que o ExplorarPage está importado corretamente
-// import 'package:fighter_app/explorar_page.dart'; // Ou o caminho para sua tela de explorar
 
 class TelaArtesMarciais extends StatefulWidget {
-  final String? sexo; // Preferência de sexo do parceiro
-  final String? nivelExperiencia; // Preferência de nível do parceiro
-  final String? pesoCategoria; // Preferência de peso do parceiro
+  final String? sexo;
+  final String? nivelExperiencia;
+  final String? pesoCategoria;
 
   const TelaArtesMarciais({
     super.key,
@@ -35,8 +32,8 @@ class _TelaArtesMarciaisState extends State<TelaArtesMarciais> {
   ];
 
   final List<String> niveis = ['Iniciante', 'Intermediário', 'Avançado'];
-  String? nivelSelecionado; // Nível de experiência DO USUÁRIO
-  final List<String> selecionadas = []; // Artes Marciais DO USUÁRIO
+  String? nivelSelecionado;
+  final List<String> selecionadas = [];
 
   bool get podeAvancar => selecionadas.isNotEmpty && nivelSelecionado != null;
 
@@ -75,35 +72,17 @@ class _TelaArtesMarciaisState extends State<TelaArtesMarciais> {
       return;
     }
 
-    // Dados que serão ATUALIZADOS no backend para O USUÁRIO ATUAL
     final Map<String, dynamic> updateData = {
-      'arteMarcial': selecionadas, // Artes marciais do usuário
-      'nivelExperiencia': nivelSelecionado, // Nível de experiência do usuário
-    };
-
-    // Criar o mapa de FILTROS COMPLETO para passar para a TELA DE EXPLORAR
-    // Isso inclui as preferências passadas de PreferenciasParceiroPage
-    // e as artes marciais/nível selecionados nesta tela.
-    final Map<String, dynamic> filtrosParaExplorar = {
-      // Preferências de PreferenciasParceiroPage (se não forem nulas)
-      if (widget.sexo != null) 'sexo': widget.sexo, // Pref. sexo do parceiro
-      if (widget.nivelExperiencia != null) 'nivelExperiencia': widget.nivelExperiencia, // Pref. nível do parceiro
-      if (widget.pesoCategoria != null) 'pesoCategoria': widget.pesoCategoria, // Pref. peso do parceiro
-
-      // Preferências/características definidas nesta tela para o FILTRO
-      // Note: O nome do campo na API para 'arteMarcial' e 'nivelExperiencia'
-      // no contexto de filtro de PARCEIRO deve corresponder.
-      // Use os nomes dos campos da sua entidade 'Usuario' para o filtro.
-      if (selecionadas.isNotEmpty) 'arteMarcial': selecionadas, // Artes marciais do parceiro (a ser filtrado)
-      if (nivelSelecionado != null) 'nivelExperiencia': nivelSelecionado, // Nível de experiência do parceiro (a ser filtrado)
+      'arteMarcial': selecionadas,
+      'nivelExperiencia': nivelSelecionado,
+      'preferenciaSexo': widget.sexo,
+      'preferenciaNivel': widget.nivelExperiencia,
+      'preferenciaPeso': widget.pesoCategoria,
     };
 
     final sucesso = await UsuarioService.atualizarUsuario(currentUser.uid, updateData);
     if (sucesso) {
-      // Passa os filtros completos para a próxima tela
-      // O '/fotoperfil' deve ser configurado para receber esses argumentos e passá-los adiante
-      // ou ser a própria tela que iniciará a navegação para ExplorarPage com esses filtros.
-      Navigator.pushNamed(context, '/fotoperfil', arguments: filtrosParaExplorar);
+      Navigator.pushNamed(context, '/fotoperfil');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Erro ao salvar suas artes marciais.')),
@@ -152,13 +131,27 @@ class _TelaArtesMarciaisState extends State<TelaArtesMarciais> {
   }
 
   Widget _buildTitulo() {
-    return const Text(
-      'O que você pratica?\nE qual seu nível?',
-      style: TextStyle(
-        fontSize: 20,
-        fontWeight: FontWeight.w600,
-        color: Color(0xFF000000),
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: const [
+        Text(
+          'Quais artes marciais você pratica?',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
+        ),
+        SizedBox(height: 6),
+        Text(
+          'E qual seu nível geral?',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+            color: Colors.black87,
+          ),
+        ),
+      ],
     );
   }
 
@@ -174,7 +167,7 @@ class _TelaArtesMarciaisState extends State<TelaArtesMarciais> {
           selectedColor: const Color(0xFF8D0000),
           backgroundColor: const Color(0xFFF5F5F5),
           labelStyle: TextStyle(
-            color: ativo ? Colors.white : const Color(0xFF000000),
+            color: ativo ? Colors.white : Colors.black,
             fontWeight: FontWeight.w600,
           ),
           shape: RoundedRectangleBorder(
@@ -213,7 +206,7 @@ class _TelaArtesMarciaisState extends State<TelaArtesMarciais> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: selecionada ? const Color(0xFF8D0000) : const Color(0xFF000000),
+                    color: selecionada ? const Color(0xFF8D0000) : Colors.black,
                   ),
                 ),
                 if (selecionada)

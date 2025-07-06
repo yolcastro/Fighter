@@ -46,7 +46,6 @@ class _TelaCaracteristicasState extends State<TelaCaracteristicas> {
       erroAltura == null && (ultimaAlturaValida != null && ultimaAlturaValida!.isNotEmpty);
 
   void avancar() {
-    // Obter UID do usuário logado
     final User? currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -55,7 +54,6 @@ class _TelaCaracteristicasState extends State<TelaCaracteristicas> {
       return;
     }
 
-    // Preparar dados para atualização
     final Map<String, dynamic> updateData = {
       'pesoCategoria': categoriaPesoSelecionada,
       'alturaEmCm': int.tryParse(ultimaAlturaValida ?? '0'),
@@ -64,7 +62,6 @@ class _TelaCaracteristicasState extends State<TelaCaracteristicas> {
 
     print('Enviando updateData: $updateData');
 
-    // Chamar a função de atualização sem await e sem loading
     UsuarioService.atualizarUsuario(currentUser.uid, updateData).then((success) {
       if (success) {
         print('Características atualizadas com sucesso para o UID: ${currentUser.uid}');
@@ -79,7 +76,6 @@ class _TelaCaracteristicasState extends State<TelaCaracteristicas> {
       }
     });
 
-    // Navegar imediatamente para a próxima tela
     Navigator.pushNamed(context, '/preferencias');
   }
 
@@ -88,32 +84,34 @@ class _TelaCaracteristicasState extends State<TelaCaracteristicas> {
     return Scaffold(
       backgroundColor: const Color(0xFFEFEFEF),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildBotaoVoltar(),
-              const SizedBox(height: 40),
-              _buildTitulo(),
-              const SizedBox(height: 32),
-              _buildCampoGenero(),
-              const SizedBox(height: 24),
-              _buildCampoPeso(),
-              const SizedBox(height: 24),
-              _buildCampoAltura(),
-              if (erroAltura != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 6, left: 4),
-                  child: Text(
-                    erroAltura!,
-                    style: const TextStyle(color: Colors.red, fontSize: 14),
+        child: SingleChildScrollView( // ✅ PREVINE OVERFLOW
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildBotaoVoltar(),
+                const SizedBox(height: 40),
+                _buildTitulo(),
+                const SizedBox(height: 32),
+                _buildCampoGenero(),
+                const SizedBox(height: 24),
+                _buildCampoPeso(),
+                const SizedBox(height: 24),
+                _buildCampoAltura(),
+                if (erroAltura != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6, left: 4),
+                    child: Text(
+                      erroAltura!,
+                      style: const TextStyle(color: Colors.red, fontSize: 14),
+                    ),
                   ),
-                ),
-              const Spacer(),
-              _buildBotaoProximo(),
-              const SizedBox(height: 24),
-            ],
+                const SizedBox(height: 40), // substitui Spacer por altura fixa
+                _buildBotaoProximo(),
+                const SizedBox(height: 24),
+              ],
+            ),
           ),
         ),
       ),

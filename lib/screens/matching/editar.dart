@@ -1,7 +1,9 @@
-import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
 
+import 'package:fighter_app/usuario.service.dart';
 import 'editar_artes.dart';
 
 class EditarPerfil extends StatefulWidget {
@@ -12,20 +14,20 @@ class EditarPerfil extends StatefulWidget {
 }
 
 class _EditarPerfilState extends State<EditarPerfil> {
-  final TextEditingController nomeController = TextEditingController(text: 'Jonas');
-  final TextEditingController generoController = TextEditingController(text: 'Masculino');
-  final TextEditingController alturaController = TextEditingController(text: '180');
+  final TextEditingController nomeController = TextEditingController();
+  final TextEditingController generoController = TextEditingController();
+  final TextEditingController alturaController = TextEditingController();
 
   File? _imagemSelecionada;
 
-  String? categoriaPesoSelecionada = 'Peso Leve (até 70.3kg)';
+  String? pesoCategoriaSelecionada;
 
-  int diaSelecionado = 14;
-  String mesSelecionado = 'novembro';
-  int anoSelecionado = 2001;
+  int diaSelecionado = 1;
+  String mesSelecionado = 'janeiro';
+  int anoSelecionado = 2000;
 
-  String? estadoSelecionado = 'CE';
-  String? cidadeSelecionada = 'Fortaleza';
+  String? estadoSelecionado;
+  String? cidadeSelecionada;
 
   final List<int> dias = List.generate(31, (index) => index + 1);
   final List<String> meses = [
@@ -47,10 +49,6 @@ class _EditarPerfilState extends State<EditarPerfil> {
 
   final List<String> generos = ['Masculino', 'Feminino', 'Outro'];
 
-  final List<String> estados = [
-    'CE', 'MG', 'RJ', 'SP',
-  ];
-
   final Map<String, String> nomesEstados = {
     'CE': 'Ceará',
     'SP': 'São Paulo',
@@ -62,10 +60,79 @@ class _EditarPerfilState extends State<EditarPerfil> {
     'CE': ['Fortaleza', 'Caucaia', 'Itaitinga', 'Maracanaú'],
   };
 
-  Future<void> _escolherImagem() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? imagem = await picker.pickImage(source: ImageSource.gallery);
+  @override
+  void initState() {
+    super.initState();
+    carregarDadosUsuario();
+  }
 
+  Future<void> carregarDadosUsuario() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final dados = await UsuarioService.buscarUsuarioPorId(user.uid);
+    if (dados == null) return;
+
+    setState(() {
+      nomeController.text = dados['nome'] ?? '';
+      generoController.text = dados['sexo'] ?? '';
+      alturaController.text = (dados['alturaEmCm'] ?? '').toString();
+
+      pesoCategoriaSelecionada = categoriasPesoUFC.contains(dados['pesoCategoria'])
+          ? dados['pesoCategoria']
+          : categoriasPesoUFC[0];
+
+      if (dados['localizacao'] != null && dados['localizacao'].contains('-')) {
+        final partes = dados['localizacao'].split(' - ');
+        cidadeSelecionada = partes[0].trim();
+        estadoSelecionado = partes[1].trim();
+      }
+
+      if (dados['dataNascimento'] != null) {
+        final partes = dados['dataNascimento'].split(' de ');
+        if (partes.length == 3) {
+          diaSelecionado = int.tryParse(partes[0]) ?? diaSelecionado;
+          mesSelecionado = partes[1];
+          anoSelecionado = int.tryParse(partes[2]) ?? anoSelecionado;
+        }
+      }
+    });
+  }
+
+  Future<void> salvarPerfil() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    Map<String, dynamic> dadosAtualizados = {};
+
+    if (nomeController.text.trim().isNotEmpty) {
+      dadosAtualizados['nome'] = nomeController.text.trim();
+    }
+    if (generoController.text.trim().isNotEmpty) {
+      dadosAtualizados['sexo'] = generoController.text.trim();
+    }
+    if (alturaController.text.trim().isNotEmpty) {
+      final altura = int.tryParse(alturaController.text.trim());
+      if (altura != null) dadosAtualizados['alturaEmCm'] = altura;
+    }
+    if (pesoCategoriaSelecionada != null) {
+      dadosAtualizados['pesoCategoria'] = pesoCategoriaSelecionada;
+    }
+    if (cidadeSelecionada != null && estadoSelecionado != null) {
+      dadosAtualizados['localizacao'] = '$cidadeSelecionada - $estadoSelecionado';
+    }
+    dadosAtualizados['dataNascimento'] = '$diaSelecionado de $mesSelecionado de $anoSelecionado';
+
+    if (dadosAtualizados.isNotEmpty) {
+      await UsuarioService.atualizarUsuario(user.uid, dadosAtualizados);
+    }
+
+    Navigator.pop(context, true);
+  }
+
+  Future<void> _escolherImagem() async {
+    final picker = ImagePicker();
+    final imagem = await picker.pickImage(source: ImageSource.gallery);
     if (imagem != null) {
       setState(() {
         _imagemSelecionada = File(imagem.path);
@@ -76,10 +143,10 @@ class _EditarPerfilState extends State<EditarPerfil> {
   void _mostrarPopupGenero() {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
+      builder: (context) {
         return AlertDialog(
+          backgroundColor: const Color(0xFFEFEFEF),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Selecione o gênero', textAlign: TextAlign.center),
           content: SizedBox(
             width: double.maxFinite,
             child: ListView(
@@ -108,7 +175,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFEFEFEF),
       body: SafeArea(
         child: Column(
           children: [
@@ -125,7 +192,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
                     _buildEstadoCidadeCampos(),
                     _buildCampo('Gênero', generoController),
                     _buildAlturaCampo(),
-                    _buildDropdownCampo('Categoria de Peso', categoriaPesoSelecionada, categoriasPesoUFC),
+                    _buildDropdownCampo('Categoria de Peso', pesoCategoriaSelecionada, categoriasPesoUFC),
                     const SizedBox(height: 30),
                     _buildAlterarArtesButton(),
                   ],
@@ -142,7 +209,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: Color(0xFFEFEFEF),
         boxShadow: [
           BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
         ],
@@ -154,9 +221,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
             alignment: Alignment.centerLeft,
             child: IconButton(
               icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF8B2E2E)),
-              onPressed: () {
-                Navigator.pop(context);
-              },
+              onPressed: () => Navigator.pop(context),
             ),
           ),
           const Text(
@@ -167,19 +232,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
             alignment: Alignment.centerRight,
             child: IconButton(
               icon: const Icon(Icons.save, color: Color(0xFF8B2E2E)),
-              onPressed: () {
-                String estadoCidade = '${cidadeSelecionada ?? ''}, ${estadoSelecionado ?? ''}';
-
-                Navigator.pop(context, {
-                  'nome': nomeController.text,
-                  'dataNascimento': '$diaSelecionado de $mesSelecionado de $anoSelecionado',
-                  'estadoCidade': estadoCidade,
-                  'genero': generoController.text,
-                  'altura': alturaController.text,
-                  'peso': categoriaPesoSelecionada,
-                  'imagem': _imagemSelecionada,
-                });
-              },
+              onPressed: salvarPerfil,
             ),
           ),
         ],
@@ -217,16 +270,14 @@ class _EditarPerfilState extends State<EditarPerfil> {
   }
 
   Widget _buildCampo(String label, TextEditingController controller) {
-    bool isGenero = label == 'Gênero';
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         GestureDetector(
-          onTap: isGenero ? _mostrarPopupGenero : null,
+          onTap: label == 'Gênero' ? _mostrarPopupGenero : null,
           child: AbsorbPointer(
-            absorbing: isGenero,
+            absorbing: label == 'Gênero',
             child: TextField(
               controller: controller,
               decoration: const InputDecoration(
@@ -273,59 +324,11 @@ class _EditarPerfilState extends State<EditarPerfil> {
         const Text('Data de nascimento', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         Row(
           children: [
-            Expanded(
-              child: DropdownButtonFormField<int>(
-                value: diaSelecionado,
-                items: dias.map((dia) {
-                  return DropdownMenuItem<int>(
-                    value: dia,
-                    child: Text(dia.toString(), style: const TextStyle(fontSize: 16)),
-                  );
-                }).toList(),
-                onChanged: (newValue) {
-                  setState(() {
-                    diaSelecionado = newValue!;
-                  });
-                },
-                decoration: const InputDecoration(border: InputBorder.none, isDense: true),
-              ),
-            ),
+            _buildDropdown(diaSelecionado, dias, (value) => setState(() => diaSelecionado = value)),
             const SizedBox(width: 8),
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                value: mesSelecionado,
-                items: meses.map((mes) {
-                  return DropdownMenuItem<String>(
-                    value: mes,
-                    child: Text(mes, style: const TextStyle(fontSize: 16)),
-                  );
-                }).toList(),
-                onChanged: (newValue) {
-                  setState(() {
-                    mesSelecionado = newValue!;
-                  });
-                },
-                decoration: const InputDecoration(border: InputBorder.none, isDense: true),
-              ),
-            ),
+            _buildDropdown(mesSelecionado, meses, (value) => setState(() => mesSelecionado = value)),
             const SizedBox(width: 8),
-            Expanded(
-              child: DropdownButtonFormField<int>(
-                value: anoSelecionado,
-                items: anos.map((ano) {
-                  return DropdownMenuItem<int>(
-                    value: ano,
-                    child: Text(ano.toString(), style: const TextStyle(fontSize: 16)),
-                  );
-                }).toList(),
-                onChanged: (newValue) {
-                  setState(() {
-                    anoSelecionado = newValue!;
-                  });
-                },
-                decoration: const InputDecoration(border: InputBorder.none, isDense: true),
-              ),
-            ),
+            _buildDropdown(anoSelecionado, anos, (value) => setState(() => anoSelecionado = value)),
           ],
         ),
         const Divider(thickness: 1, color: Colors.black),
@@ -334,72 +337,46 @@ class _EditarPerfilState extends State<EditarPerfil> {
     );
   }
 
-  Widget _buildEstadoCidadeCampos() {
-    String localizacao = '${cidadeSelecionada ?? ''}, ${estadoSelecionado ?? ''}';
+  Widget _buildDropdown<T>(T value, List<T> items, void Function(T) onChanged) {
+    return Expanded(
+      child: DropdownButtonFormField<T>(
+        value: value,
+        items: items.map((item) {
+          return DropdownMenuItem<T>(
+            value: item,
+            child: Text(item.toString(), style: const TextStyle(fontSize: 16)),
+          );
+        }).toList(),
+        onChanged: (newValue) => onChanged(newValue!),
+        decoration: const InputDecoration(border: InputBorder.none, isDense: true),
+      ),
+    );
+  }
 
+  Widget _buildEstadoCidadeCampos() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text('Estado e Cidade', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         Row(
           children: [
-            Flexible(
-              flex: 4,
-              fit: FlexFit.tight,
-              child: DropdownButtonFormField<String>(
-                value: estadoSelecionado,
-                items: estados.map((uf) {
-                  return DropdownMenuItem<String>(
-                    value: uf,
-                    child: Text(
-                      uf, // mostra apenas sigla
-                      style: const TextStyle(fontSize: 14),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  );
-                }).toList(),
-                onChanged: (newValue) {
-                  setState(() {
-                    estadoSelecionado = newValue;
-                    final cidades = cidadesPorEstado[newValue!] ?? [];
-                    cidadeSelecionada = cidades.isNotEmpty ? cidades[0] : null;
-                  });
-                },
-                decoration: const InputDecoration(border: InputBorder.none, isDense: true),
-              ),
+            _buildDropdown<String>(
+              estadoSelecionado ?? nomesEstados.keys.first,
+              nomesEstados.keys.toList(),
+              (value) {
+                setState(() {
+                  estadoSelecionado = value;
+                  cidadeSelecionada = cidadesPorEstado[value]?.first;
+                });
+              },
             ),
             const SizedBox(width: 8),
-            Flexible(
-              flex: 6,
-              fit: FlexFit.tight,
-              child: DropdownButtonFormField<String>(
-                value: cidadeSelecionada,
-                items: (cidadesPorEstado[estadoSelecionado] ?? []).map((cidade) {
-                  return DropdownMenuItem<String>(
-                    value: cidade,
-                    child: Text(
-                      cidade,
-                      style: const TextStyle(fontSize: 14),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  );
-                }).toList(),
-                onChanged: (newValue) {
-                  setState(() {
-                    cidadeSelecionada = newValue;
-                  });
-                },
-                decoration: const InputDecoration(border: InputBorder.none, isDense: true),
-              ),
+            _buildDropdown<String>(
+              cidadeSelecionada ?? '',
+              (cidadesPorEstado[estadoSelecionado] ?? []),
+              (value) => setState(() => cidadeSelecionada = value),
             ),
           ],
-        ),
-        const Divider(thickness: 1, color: Colors.black),
-        const SizedBox(height: 12),
-        const Text('Localização', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-        Text(
-          localizacao,
-          style: const TextStyle(fontSize: 16),
         ),
         const Divider(thickness: 1, color: Colors.black),
         const SizedBox(height: 12),
@@ -420,11 +397,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
               child: Text(option, style: const TextStyle(fontSize: 16)),
             );
           }).toList(),
-          onChanged: (newValue) {
-            setState(() {
-              categoriaPesoSelecionada = newValue;
-            });
-          },
+          onChanged: (newValue) => setState(() => pesoCategoriaSelecionada = newValue),
           decoration: const InputDecoration(border: InputBorder.none, isDense: true),
         ),
         const Divider(thickness: 1, color: Colors.black),
@@ -434,26 +407,19 @@ class _EditarPerfilState extends State<EditarPerfil> {
   }
 
   Widget _buildAlterarArtesButton() {
-    return Center(
-      child: SizedBox(
-        width: 200,
-        height: 48,
-        child: ElevatedButton(
-          onPressed: () {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const EditarArtes()));
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF8D0000),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-            elevation: 4,
-            shadowColor: Colors.black12,
-            padding: const EdgeInsets.symmetric(vertical: 14),
-          ),
-          child: const Text(
-            'Alterar artes marciais',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15),
-          ),
+    return SizedBox(
+      width: 200,
+      height: 48,
+      child: ElevatedButton(
+        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EditarArtes())),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF8D0000),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+          elevation: 4,
+          shadowColor: Colors.black12,
+          padding: const EdgeInsets.symmetric(vertical: 14),
         ),
+        child: const Text('Alterar artes marciais', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15)),
       ),
     );
   }
