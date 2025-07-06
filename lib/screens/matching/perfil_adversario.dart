@@ -26,14 +26,14 @@ class PerfilAdversarioPage extends StatelessWidget {
     final List<String> estilos = ['Capoeira - Intermediário'];
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: Colors.white, // fundo geral branco
       body: SafeArea(
         child: Column(
           children: [
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               decoration: const BoxDecoration(
-                color: Colors.white,
+                color: Color(0xFFEFEFEF), // cabeçalho efefef
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black12,
@@ -72,7 +72,7 @@ class PerfilAdversarioPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    CircleAvatar(
+                    const CircleAvatar(
                       radius: 70,
                       backgroundImage: AssetImage('assets/marina.jpg'),
                     ),
@@ -110,7 +110,7 @@ class PerfilAdversarioPage extends StatelessWidget {
                       width: double.infinity,
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: Colors.grey[200],
+                        color: const Color(0xFFEFEFEF), // descrição fundo efefef
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Text(
@@ -125,27 +125,44 @@ class PerfilAdversarioPage extends StatelessWidget {
                       runSpacing: 10,
                       alignment: WrapAlignment.center,
                       children: estilos.map((estilo) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF8B2E2E),
-                            borderRadius: BorderRadius.circular(30),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Colors.black26,
-                                blurRadius: 4,
-                                offset: Offset(0, 2),
-                              )
-                            ],
-                          ),
-                          child: Text(
-                            estilo,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                        final partes = estilo.split(' - ');
+                        final nomeArte = partes[0];
+                        final nivel = partes.length > 1 ? partes[1] : 'N/A';
+
+                        return Column(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF8B2E2E),
+                                borderRadius: BorderRadius.circular(30),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Colors.black26,
+                                    blurRadius: 4,
+                                    offset: Offset(0, 2),
+                                  )
+                                ],
+                              ),
+                              child: Text(
+                                nomeArte,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
                             ),
-                          ),
+                            const SizedBox(height: 6),
+                            Text(
+                              nivel,
+                              style: const TextStyle(
+                                color: Colors.black87,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         );
                       }).toList(),
                     ),
