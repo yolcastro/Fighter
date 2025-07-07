@@ -60,16 +60,12 @@ class _TelaCaracteristicasState extends State<TelaCaracteristicas> {
       'sexo': generoSelecionado,
     };
 
-    print('Enviando updateData: $updateData');
-
     UsuarioService.atualizarUsuario(currentUser.uid, updateData).then((success) {
       if (success) {
-        print('Características atualizadas com sucesso para o UID: ${currentUser.uid}');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Características atualizadas com sucesso!')),
         );
       } else {
-        print('Erro ao atualizar características para o UID: ${currentUser.uid}');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Erro ao atualizar características.')),
         );
@@ -84,7 +80,7 @@ class _TelaCaracteristicasState extends State<TelaCaracteristicas> {
     return Scaffold(
       backgroundColor: const Color(0xFFEFEFEF),
       body: SafeArea(
-        child: SingleChildScrollView( // ✅ PREVINE OVERFLOW
+        child: SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
@@ -107,7 +103,7 @@ class _TelaCaracteristicasState extends State<TelaCaracteristicas> {
                       style: const TextStyle(color: Colors.red, fontSize: 14),
                     ),
                   ),
-                const SizedBox(height: 40), // substitui Spacer por altura fixa
+                const SizedBox(height: 40),
                 _buildBotaoProximo(),
                 const SizedBox(height: 24),
               ],
@@ -147,15 +143,17 @@ class _TelaCaracteristicasState extends State<TelaCaracteristicas> {
           onTap: _selecionarGenero,
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             decoration: BoxDecoration(
-              color: const Color(0xFFDADADA),
+              color: const Color(0xFFE0E0E0), // cor igual a localização
               borderRadius: BorderRadius.circular(30),
-              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+              boxShadow: const [
+                BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
+              ],
             ),
             child: Text(
               generoSelecionado,
-              style: const TextStyle(fontSize: 16, color: Color(0xFF000000)),
+              style: const TextStyle(fontSize: 16, color: Colors.black87),
             ),
           ),
         ),
@@ -194,21 +192,29 @@ class _TelaCaracteristicasState extends State<TelaCaracteristicas> {
         const Text('Categoria de peso (UFC)', style: TextStyle(fontSize: 18, color: Color(0xFF343434))),
         const SizedBox(height: 8),
         Container(
+          width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 20),
           decoration: BoxDecoration(
-            color: const Color(0xFFDADADA),
+            color: const Color(0xFFE0E0E0), // cor igual a localização
             borderRadius: BorderRadius.circular(30),
-            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+            boxShadow: const [
+              BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
+            ],
           ),
           child: DropdownButton<String>(
             isExpanded: true,
             value: categoriaPesoSelecionada,
             iconEnabledColor: const Color(0xFF8D0000),
             underline: const SizedBox(),
-            style: const TextStyle(color: Color(0xFF000000), fontSize: 16),
-            items: categoriasPesoUFC
-                .map((cat) => DropdownMenuItem<String>(value: cat, child: Text(cat)))
-                .toList(),
+            items: categoriasPesoUFC.map((cat) {
+              return DropdownMenuItem<String>(
+                value: cat,
+                child: Text(
+                  cat,
+                  style: const TextStyle(fontSize: 16, color: Colors.black87, fontWeight: FontWeight.bold),
+                ),
+              );
+            }).toList(),
             onChanged: (value) => setState(() => categoriaPesoSelecionada = value!),
           ),
         ),
@@ -222,12 +228,22 @@ class _TelaCaracteristicasState extends State<TelaCaracteristicas> {
       children: [
         const Text('Altura', style: TextStyle(fontSize: 18, color: Color(0xFF343434))),
         const SizedBox(height: 8),
-        TextField(
-          controller: alturaController,
-          keyboardType: TextInputType.number,
-          decoration: _inputEstilo('cm', 'cm'),
-          style: const TextStyle(color: Color(0xFF000000), fontSize: 16),
-          onChanged: _validarAltura,
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: const Color(0xFFE0E0E0), // cor igual a localização
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: const [
+              BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
+            ],
+          ),
+          child: TextField(
+            controller: alturaController,
+            keyboardType: TextInputType.number,
+            decoration: _inputEstilo('cm', 'cm'),
+            style: const TextStyle(color: Colors.black87, fontSize: 16),
+            onChanged: _validarAltura,
+          ),
         ),
       ],
     );
@@ -285,14 +301,12 @@ class _TelaCaracteristicasState extends State<TelaCaracteristicas> {
     return InputDecoration(
       hintText: hint,
       hintStyle: const TextStyle(color: Color(0xFF555555), fontSize: 16),
-      filled: true,
-      fillColor: const Color(0xFFDADADA),
       suffixText: sufixo,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(30),
         borderSide: BorderSide.none,
       ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
     );
   }
 }
