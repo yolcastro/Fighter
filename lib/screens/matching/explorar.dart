@@ -186,9 +186,9 @@ class _TelaExplorarState extends State<TelaExplorar> {
 
         // 3. Filtrar: remover o próprio usuário e usuários já curtidos
         fetchedPessoas = fetchedPessoas.where((pessoa) =>
-                pessoa.id != currentUid && // Remove o próprio usuário
-                !likedUserIds.contains(pessoa.id) // Remove usuários já curtidos
-              ).toList();
+            pessoa.id != currentUid && // Remove o próprio usuário
+            !likedUserIds.contains(pessoa.id) // Remove usuários já curtidos
+          ).toList();
 
         setState(() {
           pessoas = fetchedPessoas;
@@ -312,7 +312,7 @@ class _TelaExplorarState extends State<TelaExplorar> {
                         chatId: createdChatId,
                         currentUserId: _currentUserPessoa!.id,
                         currentUser: _currentUserPessoa!, // Passa o objeto Pessoa do usuário logado
-                        otherUser: currentProfile,       // Passa o objeto Pessoa do usuário com match
+                        otherUser: currentProfile,      // Passa o objeto Pessoa do usuário com match
                       ),
                     ),
                   );
@@ -423,54 +423,7 @@ class _TelaExplorarState extends State<TelaExplorar> {
     );
   }
 
-  Future<void> _confirmarSaida() async {
-    final confirmar = await showDialog<bool>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        contentPadding: const EdgeInsets.symmetric(vertical: 16),
-        children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24.0),
-            child: Text(
-              'Deseja sair da conta?',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
-              ),
-              TextButton(
-                onPressed: () async {
-                  await FirebaseAuth.instance.signOut();
-                  if (mounted) {
-                    Navigator.pop(context, true);
-                  }
-                },
-                child: const Text('Sair', style: TextStyle(color: Color(0xFF8B2E2E))),
-              ),
-            ],
-          )
-        ],
-      ),
-    );
-
-    if (confirmar == true) {
-      if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          '/login',
-          (route) => false,
-        );
-      }
-    }
-  }
+  // Removed _confirmarSaida as it's no longer needed for the back button.
 
   Future<bool> _onWillPop() async {
     exit(0);
@@ -707,13 +660,7 @@ class _TelaExplorarState extends State<TelaExplorar> {
     );
   }
 
-  Widget _buildBotaoVoltar() {
-    return IconButton(
-      icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF8B2E2E)),
-      onPressed: _confirmarSaida,
-      splashRadius: 24,
-    );
-  }
+  // Removed _buildBotaoVoltar as it is no longer needed.
 
   @override
   Widget build(BuildContext context) {
@@ -730,39 +677,38 @@ class _TelaExplorarState extends State<TelaExplorar> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
+                    // Removed the inner Row and _buildBotaoVoltar()
+                    const Text(
+                      'Explorar',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black, // Changed color to black
+                      ),
+                    ),
+                    Row( // Grouping chat and profile icons together
                       children: [
-                        _buildBotaoVoltar(),
-                        const SizedBox(width: 12),
-                        const Text(
-                          'Explorar',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF8B2E2E),
-                          ),
+                        IconButton(
+                          icon: const Icon(Icons.chat_bubble_outline, color: Color(0xFF8B2E2E)),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const TelaHistoricoChats()),
+                            );
+                          },
+                          splashRadius: 24,
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.person_outline, color: Color(0xFF8B2E2E)),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const PerfilUsuarioPage()),
+                            );
+                          },
+                          splashRadius: 24,
                         ),
                       ],
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.chat_bubble_outline, color: Color(0xFF8B2E2E)),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const TelaHistoricoChats()),
-                        );
-                      },
-                      splashRadius: 24,
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.person_outline, color: Color(0xFF8B2E2E)),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const PerfilUsuarioPage()),
-                        );
-                      },
-                      splashRadius: 24,
                     ),
                   ],
                 ),
