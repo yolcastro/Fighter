@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Importe o Firebase Auth para obter o UID
-import 'package:fighter_app/usuario.service.dart'; // Certifique-se de que o caminho está correto
-import 'localizacao.dart'; // Assumindo que esta é a próxima tela
-import 'package:fighter_app/screens/auth/checagem.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fighter_app/usuario.service.dart';
+import 'localizacao.dart';
 
 class TelaDataNascimento extends StatefulWidget {
   const TelaDataNascimento({super.key});
@@ -27,9 +26,7 @@ class _TelaDataNascimentoState extends State<TelaDataNascimento> {
     return meses.indexOf(mes) + 1;
   }
 
-  // Função para lidar com a atualização da data de nascimento
   Future<void> _salvarDataNascimento() async {
-    // 1. Obter o UID do usuário logado
     final User? currentUser = FirebaseAuth.instance.currentUser;
 
     if (currentUser == null) {
@@ -47,32 +44,23 @@ class _TelaDataNascimentoState extends State<TelaDataNascimento> {
     }
 
     final numeroMes = obterNumeroMes(mes!);
-    // 2. Formatar a data para DD/MM/AAAA, como esperado pela sua API
     final String dataNascimentoFormatada = '${dia!.padLeft(2, '0')}/${numeroMes.toString().padLeft(2, '0')}/$ano';
 
-    // Dados a serem enviados para a API (apenas a data de nascimento neste caso)
     final Map<String, dynamic> updateData = {
       'dataNascimento': dataNascimentoFormatada,
-      // Se sua API exigir outros campos no PUT mesmo para atualização parcial,
-      // você precisará coletá-los e adicioná-los aqui.
-      // Exemplo: 'nome': 'Nome do Usuário', 'email': 'email@exemplo.com',
     };
 
-    // 3. Chamar a função de atualização do UsuarioService
     bool success = await UsuarioService.atualizarUsuario(currentUser.uid, updateData);
 
     if (success) {
-      print('Data de nascimento atualizada com sucesso para o UID: ${currentUser.uid}');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Data de nascimento atualizada com sucesso!')),
       );
-      // Navegar para a próxima tela após o sucesso
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const TelaLocalizacao()),
       );
     } else {
-      print('Erro ao atualizar data de nascimento para o UID: ${currentUser.uid}');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Erro ao atualizar data de nascimento.')),
       );
@@ -154,23 +142,33 @@ class _TelaDataNascimentoState extends State<TelaDataNascimento> {
         const SizedBox(height: 6),
         Container(
           decoration: BoxDecoration(
-            color: const Color(0xFFDADADA),
+            color: const Color(0xFFE0E0E0), // cor padronizada
             borderRadius: BorderRadius.circular(30),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black12, // sombra suave
+                blurRadius: 4,
+                offset: Offset(0, 2),
+              ),
+            ],
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
           child: DropdownButtonFormField<String>(
             isDense: true,
             isExpanded: true,
             value: valor,
             items: opcoes.map((item) => DropdownMenuItem(
               value: item,
-              child: Text(item, overflow: TextOverflow.ellipsis),
+              child: Text(
+                item,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 16, color: Colors.black87),
+              ),
             )).toList(),
             onChanged: onChange,
             decoration: const InputDecoration(
               border: InputBorder.none,
             ),
-            style: const TextStyle(fontSize: 16, color: Color(0xFF000000)),
             iconEnabledColor: const Color(0xFF8D0000),
             dropdownColor: const Color(0xFFFFFFFF),
           ),
@@ -185,7 +183,6 @@ class _TelaDataNascimentoState extends State<TelaDataNascimento> {
         width: 220,
         height: 56,
         child: ElevatedButton(
-          // Chama a nova função _salvarDataNascimento()
           onPressed: _salvarDataNascimento,
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF8D0000),
