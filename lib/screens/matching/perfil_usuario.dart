@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fighter_app/usuario.service.dart';
 import 'editar.dart';
+import 'package:intl/intl.dart'; // Importe para usar DateFormat
 
 class PerfilUsuarioPage extends StatefulWidget {
   const PerfilUsuarioPage({super.key});
@@ -21,6 +22,7 @@ class _PerfilUsuarioPageState extends State<PerfilUsuarioPage> {
   String nivelExperiencia = '...';
   String dataNascimento = '';
   int idade = 0;
+  String fotoPerfilUrl = ''; // Adicionar campo para a URL da foto de perfil
 
   Future<void> _confirmarSaida() async {
     final confirmar = await showDialog<bool>(
@@ -49,7 +51,12 @@ class _PerfilUsuarioPageState extends State<PerfilUsuarioPage> {
                 ),
               ),
               TextButton(
-                onPressed: () => Navigator.pop(context, true),
+                onPressed: () async {
+                  await FirebaseAuth.instance.signOut();
+                  if (mounted) {
+                    Navigator.pop(context, true);
+                  }
+                },
                 child: const Text(
                   'Sair',
                   style: TextStyle(color: Color(0xFF8B2E2E)),
@@ -66,7 +73,9 @@ class _PerfilUsuarioPageState extends State<PerfilUsuarioPage> {
       await FirebaseAuth.instance.signOut();
 
       // ✅ Navega para login removendo todas as rotas anteriores
-      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      }
     }
   }
 
@@ -85,12 +94,16 @@ class _PerfilUsuarioPageState extends State<PerfilUsuarioPage> {
         nome = dados['nome'] ?? nome;
         genero = dados['sexo'] ?? genero;
         altura = dados['alturaEmCm'] ?? altura;
-        pesoCategoria = dados['pesoCategoria'] ?? pesoCategoria;
+        // O campo 'pesoCategoria' não existe diretamente no POJO Pessoa,
+        // ele é calculado em explorador.dart. Aqui, vamos usar o peso e calcular.
+        final int peso = dados['peso'] ?? 0;
+        pesoCategoria = categoriaPesoUFC(peso); // Calcula a categoria de peso
         local = dados['localizacao'] ?? local;
         descricao = dados['descricao'] ?? descricao;
         estilos = List<String>.from(dados['arteMarcial'] ?? estilos);
         nivelExperiencia = dados['nivelExperiencia'] ?? nivelExperiencia;
         dataNascimento = dados['dataNascimento'] ?? dataNascimento;
+        fotoPerfilUrl = dados['fotoPerfilUrl'] ?? ''; // Carrega a URL da foto
 
         idade = calcularIdade(dataNascimento);
         print('Data nascimento: $dataNascimento -> idade: $idade');
@@ -100,44 +113,50 @@ class _PerfilUsuarioPageState extends State<PerfilUsuarioPage> {
     }
   }
 
+  // Função para determinar a categoria de peso UFC (copiada de explorador.dart)
+  String categoriaPesoUFC(int peso) {
+    if (peso <= 56) return 'Peso Mosca';
+    if (peso <= 61) return 'Peso Galo';
+    if (peso <= 66) return 'Peso Pena';
+    if (peso <= 70) return 'Peso Leve';
+    if (peso <= 77) return 'Peso Meio-Médio';
+    if (peso <= 84) return 'Peso Médio';
+    if (peso <= 93) return 'Peso Meio-Pesado';
+    if (peso <= 120) return 'Peso Pesado';
+    return 'Categoria Fora do UFC';
+  }
+
+  // Adaptação da função calcularIdade para o formato DD/MM/YYYY
   int calcularIdade(String data) {
     try {
-      final partes = data.split(' de ');
-      if (partes.length == 3) {
-        final dia = int.tryParse(partes[0]) ?? 1;
-        final mesStr = partes[1].toLowerCase();
-        final ano = int.tryParse(partes[2]) ?? 2000;
+      if (data.isEmpty) return 0;
 
-        final meses = {
-          'janeiro': 1,
-          'fevereiro': 2,
-          'março': 3,
-          'abril': 4,
-          'maio': 5,
-          'junho': 6,
-          'julho': 7,
-          'agosto': 8,
-          'setembro': 9,
-          'outubro': 10,
-          'novembro': 11,
-          'dezembro': 12,
-        };
+      // Tenta parsear no formato DD/MM/YYYY
+      final DateTime birthDate = DateFormat('dd/MM/yyyy').parse(data);
+      final DateTime today = DateTime.now();
 
-        final mes = meses[mesStr] ?? 1;
-        final nascimento = DateTime(ano, mes, dia);
-        final hoje = DateTime.now();
-
-        int idade = hoje.year - nascimento.year;
-        if (hoje.month < nascimento.month ||
-            (hoje.month == nascimento.month && hoje.day < nascimento.day)) {
-          idade--;
-        }
-        return idade;
+      int calculatedAge = today.year - birthDate.year;
+      if (today.month < birthDate.month ||
+          (today.month == birthDate.month && today.day < birthDate.day)) {
+        calculatedAge--;
       }
+      return calculatedAge < 0 ? 0 : calculatedAge; // Garante que a idade não seja negativa
     } catch (e) {
-      print('Erro ao calcular idade: $e');
+      print('Erro ao calcular idade para a data "$data": $e');
+      return 0; // Retorna 0 em caso de erro
     }
-    return 0;
+  }
+
+  // Função auxiliar para obter ImageProvider
+  ImageProvider _getImageProvider(String fotoUrl) {
+    if (fotoUrl.startsWith('assets/')) {
+      return AssetImage(fotoUrl);
+    } else if (fotoUrl.startsWith('http://') || fotoUrl.startsWith('https://')) {
+      return NetworkImage(fotoUrl);
+    } else {
+      // Placeholder para URLs inválidas ou vazias
+      return const AssetImage('assets/placeholder_profile.png'); // Certifique-se de ter esta imagem
+    }
   }
 
   @override
@@ -218,9 +237,9 @@ class _PerfilUsuarioPageState extends State<PerfilUsuarioPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const CircleAvatar(
+                    CircleAvatar(
                       radius: 70,
-                      backgroundImage: AssetImage('assets/usuario.jpg'),
+                      backgroundImage: _getImageProvider(fotoPerfilUrl), // Usa a URL da foto carregada
                     ),
                     const SizedBox(height: 20),
                     Text(

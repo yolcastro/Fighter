@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:fighter_app/screens/matching/explorar.dart'; // Importe a classe Pessoa, se estiver lá
+import 'package:fighter_app/screens/matching/explorar.dart'; // Importe a classe Pessoa
 
 class PerfilAdversarioPage extends StatelessWidget {
-  final Pessoa adversario; // NOVO: Objeto Pessoa para o adversário
+  final Pessoa adversario; // Objeto Pessoa para o adversário
 
   const PerfilAdversarioPage({
     super.key,
     required this.adversario, // O adversário é obrigatório
   });
 
+  // Função para determinar a categoria de peso UFC
   String categoriaPesoUFC(int peso) {
     if (peso <= 56) return 'Peso Mosca';
     if (peso <= 61) return 'Peso Galo';
@@ -21,62 +22,41 @@ class PerfilAdversarioPage extends StatelessWidget {
     return 'Categoria Fora do UFC';
   }
 
-  // Esta função agora pode ser removida se a idade já vier calculada na Pessoa
-  // Ou mantida se Pessoa.idade for um getter que a calcula
-  int calcularIdade(String data) {
-    try {
-      final partes = data.split(' de ');
-      if (partes.length == 3) {
-        final dia = int.tryParse(partes[0]) ?? 1;
-        final mesStr = partes[1].toLowerCase();
-        final ano = int.tryParse(partes[2]) ?? 2002;
-
-        final meses = {
-          'janeiro': 1, 'fevereiro': 2, 'março': 3, 'abril': 4, 'maio': 5,
-          'junho': 6, 'julho': 7, 'agosto': 8, 'setembro': 9, 'outubro': 10,
-          'novembro': 11, 'dezembro': 12,
-        };
-
-        final mes = meses[mesStr] ?? 1;
-        final nascimento = DateTime(ano, mes, dia);
-        final hoje = DateTime.now();
-
-        int idade = hoje.year - nascimento.year;
-        if (hoje.month < nascimento.month ||
-            (hoje.month == nascimento.month && hoje.day < nascimento.day)) {
-          idade--;
-        }
-        return idade;
-      }
-    } catch (e) {
-      print('Erro ao calcular idade: $e');
+  // Função auxiliar para obter ImageProvider (reutilizada de explorador.dart)
+  ImageProvider _getImageProvider(String fotoUrl) {
+    if (fotoUrl.startsWith('assets/')) {
+      return AssetImage(fotoUrl);
+    } else if (fotoUrl.startsWith('http://') || fotoUrl.startsWith('https://')) {
+      return NetworkImage(fotoUrl);
+    } else {
+      // Placeholder para URLs inválidas ou vazias
+      return const AssetImage('assets/placeholder_profile.png'); // Certifique-se de ter esta imagem
     }
-    return 0;
   }
 
   @override
   Widget build(BuildContext context) {
-    // Usar os dados do objeto 'adversario'
+    // Usar os dados do objeto 'adversario' diretamente
     final String nome = adversario.nome;
+    final int idade = adversario.idade;
     final String genero = adversario.genero;
     final int altura = adversario.altura;
     final int peso = adversario.peso;
     final String local = adversario.local;
     final String descricao = adversario.descricao;
-    final List<String> estilos = adversario.modalidades; // 'modalidades' é a lista de estilos/artes
+    final List<String> modalidades = adversario.modalidades; // 'modalidades' é a lista de estilos/artes
     final String fotoUrl = adversario.foto; // URL ou caminho da foto
-
-    final int idade = adversario.idade; // Usar a idade já calculada na Pessoa
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
+            // AppBar customizada
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               decoration: const BoxDecoration(
-                color: Color(0xFFEFEFEF),
+                color: Color(0xFFEFEFEF), // Fundo do appbar
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black12,
@@ -93,12 +73,13 @@ class PerfilAdversarioPage extends StatelessWidget {
                     child: IconButton(
                       icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF8B2E2E)),
                       onPressed: () {
-                        Navigator.pop(context);
+                        Navigator.pop(context); // Volta para a tela anterior (geralmente o chat)
                       },
+                      splashRadius: 24,
                     ),
                   ),
                   const Text(
-                    'Perfil',
+                    'Perfil do Adversário', // Título mais específico
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -108,28 +89,74 @@ class PerfilAdversarioPage extends StatelessWidget {
                 ],
               ),
             ),
+            // Conteúdo do perfil
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
+                    // Foto de perfil
                     CircleAvatar(
                       radius: 70,
-                      backgroundImage: fotoUrl.startsWith('http')
-                          ? NetworkImage(fotoUrl) as ImageProvider
-                          : AssetImage(fotoUrl), // Para assets locais
+                      backgroundImage: _getImageProvider(fotoUrl), // Usa a função auxiliar
                     ),
                     const SizedBox(height: 20),
-                    Text(
-                      '$nome, $idade',
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF8B2E2E),
-                      ),
+
+                    // Nome e idade
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        // Define um limite de largura para o nome + idade na mesma linha
+                        double maxWidth = constraints.maxWidth * 0.7; // ajuste a porcentagem se necessário
+
+                        TextSpan fullText = TextSpan(
+                          text: '$nome, $idade',
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF8B2E2E),
+                          ),
+                        );
+
+                        TextPainter tp = TextPainter(
+                          text: fullText,
+                          maxLines: 1,
+                          textDirection: Directionality.of(context),
+                        );
+
+                        tp.layout(maxWidth: maxWidth);
+
+                        // Se ultrapassar o limite, exibe nome e idade em linhas separadas
+                        if (tp.didExceedMaxLines) {
+                          return Column(
+                            children: [
+                              Text(
+                                '$nome,',
+                                style: const TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF8B2E2E),
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              Text(
+                                '$idade',
+                                style: const TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF8B2E2E),
+                                ),
+                              ),
+                            ],
+                          );
+                        } else {
+                          return Text.rich(fullText, textAlign: TextAlign.center);
+                        }
+                      },
                     ),
                     const SizedBox(height: 8),
+
+                    // Localização
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -141,15 +168,30 @@ class PerfilAdversarioPage extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 8), // Espaçamento ajustado
+
+                    // Gênero e altura (primeira linha)
                     Text(
-                      '$genero • ${altura}cm • ${categoriaPesoUFC(peso)}',
+                      '$genero • ${altura}cm',
+                      style: const TextStyle(
+                        color: Colors.black54,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 4), // Espaçamento entre as linhas de detalhes
+
+                    // Categoria de peso (segunda linha)
+                    Text(
+                      categoriaPesoUFC(peso), // Usando a função para obter a categoria
+                      textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: Colors.black54,
                         fontSize: 16,
                       ),
                     ),
                     const SizedBox(height: 20),
+
+                    // Descrição
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(14),
@@ -164,52 +206,42 @@ class PerfilAdversarioPage extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 20),
+
+                    // Modalidades/Estilos de Luta (apenas o nome da arte)
                     Wrap(
                       spacing: 12,
                       runSpacing: 10,
                       alignment: WrapAlignment.center,
-                      children: estilos.map((estilo) {
-                        final partes = estilo.split(' - ');
-                        final nomeArte = partes[0];
-                        final nivel = partes.length > 1 ? partes[1] : 'N/A';
+                      children: modalidades.map((modalidade) {
+                        // Divide "Arte - Nível" para pegar apenas o nome da arte
+                        final nomeArte = modalidade.split(' - ')[0];
 
-                        return Column(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF8B2E2E),
-                                borderRadius: BorderRadius.circular(30),
-                                boxShadow: const [
-                                  BoxShadow(
-                                    color: Colors.black26,
-                                    blurRadius: 4,
-                                    offset: Offset(0, 2),
-                                  )
-                                ],
-                              ),
-                              child: Text(
-                                nomeArte,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                              ),
+                        return Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF8B2E2E),
+                            borderRadius: BorderRadius.circular(30),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black26,
+                                blurRadius: 4,
+                                offset: Offset(0, 2),
+                              )
+                            ],
+                          ),
+                          child: Text(
+                            nomeArte, // Exibe apenas o nome da arte
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
                             ),
-                            const SizedBox(height: 6),
-                            Text(
-                              nivel,
-                              style: const TextStyle(
-                                color: Colors.black87,
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
+                          ),
                         );
                       }).toList(),
                     ),
+                    // Não há um campo 'nivelExperiencia' geral em Pessoa para exibir aqui,
+                    // então a seção correspondente do PerfilUsuarioPage não será replicada.
                   ],
                 ),
               ),
