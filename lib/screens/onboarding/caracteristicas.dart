@@ -145,7 +145,7 @@ class _TelaCaracteristicasState extends State<TelaCaracteristicas> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             decoration: BoxDecoration(
-              color: const Color(0xFFE0E0E0), // cor igual a localização
+              color: const Color(0xFFE0E0E0),
               borderRadius: BorderRadius.circular(30),
               boxShadow: const [
                 BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
@@ -195,7 +195,7 @@ class _TelaCaracteristicasState extends State<TelaCaracteristicas> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 20),
           decoration: BoxDecoration(
-            color: const Color(0xFFE0E0E0), // cor igual a localização
+            color: const Color(0xFFE0E0E0),
             borderRadius: BorderRadius.circular(30),
             boxShadow: const [
               BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
@@ -211,7 +211,7 @@ class _TelaCaracteristicasState extends State<TelaCaracteristicas> {
                 value: cat,
                 child: Text(
                   cat,
-                  style: const TextStyle(fontSize: 16, color: Colors.black87, fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontSize: 16, color: Colors.black87), // atualizado
                 ),
               );
             }).toList(),
@@ -231,7 +231,7 @@ class _TelaCaracteristicasState extends State<TelaCaracteristicas> {
         Container(
           width: double.infinity,
           decoration: BoxDecoration(
-            color: const Color(0xFFE0E0E0), // cor igual a localização
+            color: const Color(0xFFE0E0E0),
             borderRadius: BorderRadius.circular(30),
             boxShadow: const [
               BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
