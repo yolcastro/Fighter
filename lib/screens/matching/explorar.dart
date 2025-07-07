@@ -230,9 +230,20 @@ class _TelaExplorarState extends State<TelaExplorar> {
       final Pessoa currentProfile = pessoas[currentIndex]; // Pegar o objeto Pessoa completo do perfil atual
       final String receiverId = currentProfile.id;
 
+      print('DEBUG: SenderId being sent: $senderId');
+      print('DEBUG: ReceiverId being sent: $receiverId');
+
       if (senderId == null || senderId.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Erro: ID do remetente não encontrado. Faça login novamente.')),
+        );
+        return;
+      }
+
+      // Verifica se o perfil do usuário atual (_currentUserPessoa) foi carregado
+      if (_currentUserPessoa == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erro: Perfil do usuário logado não carregado.')),
         );
         return;
       }
@@ -251,49 +262,78 @@ class _TelaExplorarState extends State<TelaExplorar> {
             const SnackBar(content: Text('Like enviado!')),
           );
 
-          // NOVO: Verificar se houve um match e criar chat
+          // NOVO: Verificar se houve um match
           try {
             final Uri checkMatchUri = Uri.parse(
               'https://e9f6-187-18-138-85.ngrok-free.app/api/likes/check?senderId=$receiverId&receiverId=$senderId',
             );
             final checkMatchResponse = await http.get(checkMatchUri);
 
-            if (checkMatchResponse.statusCode == 200 && json.decode(checkMatchResponse.body)['match'] == true) {
-              print('MATCH! Criando chat...');
-              final Uri createChatUri = Uri.parse('https://e9f6-187-18-138-85.ngrok-free.app/api/chats/create');
-              final chatResponse = await http.post(
-                createChatUri,
-                headers: {'Content-Type': 'application/json'},
-                body: json.encode({
-                  'matchId': '${senderId}_$receiverId', // Ou algum ID de match gerado
-                  'user1Id': senderId,
-                  'user2Id': receiverId,
-                }),
-              );
+            if (checkMatchResponse.statusCode == 200) {
+              // CORREÇÃO AQUI: Decodificar a resposta e verificar o tipo
+              bool isMatch = false;
+              final dynamic decodedBody = json.decode(checkMatchResponse.body);
 
-              final Map<String, dynamic> responseData = json.decode(chatResponse.body);
+              if (decodedBody is bool) {
+                isMatch = decodedBody;
+              } else if (decodedBody is Map<String, dynamic> && decodedBody.containsKey('match')) {
+                isMatch = decodedBody['match'] as bool;
+              } else {
+                print('DEBUG: Resposta inesperada para verificação de match: $decodedBody');
+                // Se o formato for inesperado, trate como não-match para evitar erros
+                isMatch = false;
+              }
 
-              if (chatResponse.statusCode == 201 && responseData['chatId'] != null) {
-                final String createdChatId = responseData['chatId'];
-                if (_currentUserPessoa != null && currentProfile != null) {
+              if (isMatch) {
+                print('MATCH! $senderId e $receiverId deram match!');
+                // Tenta criar o chat
+                final Uri createChatUri = Uri.parse('https://e9f6-187-18-138-85.ngrok-free.app/api/chats/create');
+                final chatResponse = await http.post(
+                  createChatUri,
+                  headers: {'Content-Type': 'application/json'},
+                  body: json.encode({
+                    'matchId': '${senderId}_$receiverId', // Ou um ID de match gerado pelo backend
+                    'user1Id': senderId,
+                    'user2Id': receiverId,
+                  }),
+                );
+
+                final Map<String, dynamic> chatResponseData = json.decode(chatResponse.body);
+
+                if (chatResponse.statusCode == 201 && chatResponseData['chatId'] != null) {
+                  final String createdChatId = chatResponseData['chatId'];
+                  print('Chat criado com sucesso! Chat ID: $createdChatId');
+
+                  // Navegar para a TelaMatch e aguardar o retorno
                   await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => TelaMatch(
                         chatId: createdChatId,
                         currentUserId: _currentUserPessoa!.id,
-                        currentUser: _currentUserPessoa!,
-                        otherUser: currentProfile,
+                        currentUser: _currentUserPessoa!, // Passa o objeto Pessoa do usuário logado
+                        otherUser: currentProfile,       // Passa o objeto Pessoa do usuário com match
                       ),
                     ),
                   );
+                  // Após o retorno da TelaMatch, recarrega os perfis
+                  _fetchPessoas();
+                } else {
+                  print('Falha ao criar chat: ${chatResponse.statusCode} - ${chatResponse.body}');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Erro ao criar chat: ${chatResponse.statusCode}')),
+                  );
+                  // Se falhar a criação do chat, ainda remove o perfil para não mostrar novamente
+                  setState(() {
+                    pessoas.removeAt(currentIndex);
+                    if (pessoas.isEmpty) {
+                      _showNoMoreProfilesMessage();
+                    }
+                  });
                 }
-                _fetchPessoas(); // Recarregar pessoas após um match e navegação
               } else {
-                print('Falha ao criar chat: ${chatResponse.statusCode} - ${chatResponse.body}');
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Erro ao criar chat: ${chatResponse.statusCode}')),
-                );
+                print('Não houve match com ${pessoas[currentIndex].nome}.');
+                // Se não houve match, apenas remove o perfil e atualiza a UI
                 setState(() {
                   pessoas.removeAt(currentIndex);
                   if (pessoas.isEmpty) {
@@ -302,7 +342,8 @@ class _TelaExplorarState extends State<TelaExplorar> {
                 });
               }
             } else {
-              print('Não houve match com ${pessoas[currentIndex].nome}.');
+              print('Erro ao verificar match: ${checkMatchResponse.statusCode} - ${checkMatchResponse.body}');
+              // Em caso de erro na verificação de match, ainda remove o perfil
               setState(() {
                 pessoas.removeAt(currentIndex);
                 if (pessoas.isEmpty) {
@@ -312,6 +353,7 @@ class _TelaExplorarState extends State<TelaExplorar> {
             }
           } catch (e) {
             print('Erro na requisição de verificação de match/criação de chat: $e');
+            // Em caso de erro na verificação de match, ainda remove o perfil
             setState(() {
               pessoas.removeAt(currentIndex);
               if (pessoas.isEmpty) {
@@ -324,8 +366,12 @@ class _TelaExplorarState extends State<TelaExplorar> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Erro ao enviar like: ${likeResponse.statusCode}')),
           );
+          // Ainda avança para o próximo perfil mesmo com erro no like
           setState(() {
-            currentIndex++;
+            pessoas.removeAt(currentIndex); // Remove o perfil mesmo sem sucesso no like
+            if (pessoas.isEmpty) {
+              _showNoMoreProfilesMessage();
+            }
           });
         }
       } catch (e) {
@@ -334,7 +380,10 @@ class _TelaExplorarState extends State<TelaExplorar> {
           SnackBar(content: Text('Erro de rede ao enviar like: $e')),
         );
         setState(() {
-          currentIndex++;
+          pessoas.removeAt(currentIndex); // Remove o perfil em caso de erro de rede
+          if (pessoas.isEmpty) {
+            _showNoMoreProfilesMessage();
+          }
         });
       }
     } else {
@@ -372,6 +421,55 @@ class _TelaExplorarState extends State<TelaExplorar> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
+  }
+
+  Future<void> _confirmarSaida() async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.symmetric(vertical: 16),
+        children: [
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24.0),
+            child: Text(
+              'Deseja sair da conta?',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+              ),
+              TextButton(
+                onPressed: () async {
+                  await FirebaseAuth.instance.signOut();
+                  if (mounted) {
+                    Navigator.pop(context, true);
+                  }
+                },
+                child: const Text('Sair', style: TextStyle(color: Color(0xFF8B2E2E))),
+              ),
+            ],
+          )
+        ],
+      ),
+    );
+
+    if (confirmar == true) {
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/login',
+          (route) => false,
+        );
+      }
+    }
   }
 
   Future<bool> _onWillPop() async {
@@ -566,10 +664,10 @@ class _TelaExplorarState extends State<TelaExplorar> {
                     child: Container(
                       width: 70,
                       height: 70,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         color: Colors.white,
                         shape: BoxShape.circle,
-                        boxShadow: [
+                        boxShadow: const [
                           BoxShadow(
                             color: Colors.black12,
                             blurRadius: 10,
@@ -609,6 +707,14 @@ class _TelaExplorarState extends State<TelaExplorar> {
     );
   }
 
+  Widget _buildBotaoVoltar() {
+    return IconButton(
+      icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF8B2E2E)),
+      onPressed: _confirmarSaida,
+      splashRadius: 24,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
@@ -624,37 +730,39 @@ class _TelaExplorarState extends State<TelaExplorar> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Explorar',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Color.fromARGB(255, 0, 0, 0),
-                      ),
-                    ),
                     Row(
                       children: [
-                        IconButton(
-                          icon: const Icon(Icons.chat_bubble_outline, color: Color(0xFF8B2E2E)),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => const TelaHistoricoChats()),
-                            );
-                          },
-                          splashRadius: 24,
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.person_outline, color: Color(0xFF8B2E2E)),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => const PerfilUsuarioPage()),
-                            );
-                          },
-                          splashRadius: 24,
+                        _buildBotaoVoltar(),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Explorar',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF8B2E2E),
+                          ),
                         ),
                       ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.chat_bubble_outline, color: Color(0xFF8B2E2E)),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const TelaHistoricoChats()),
+                        );
+                      },
+                      splashRadius: 24,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.person_outline, color: Color(0xFF8B2E2E)),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const PerfilUsuarioPage()),
+                        );
+                      },
+                      splashRadius: 24,
                     ),
                   ],
                 ),

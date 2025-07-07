@@ -10,32 +10,63 @@ const String BASE_URL = 'https://e9f6-187-18-138-85.ngrok-free.app';
 
 // Modelo para o objeto Chat retornado pela API (GET /api/chats/user/{userId})
 class ChatBackend {
-  final String chatId;
+  final String chatId; // Corresponde ao 'id' no Java Chat POJO
   final String user1Id;
   final String user2Id;
+  final String lastMessage; // Adicionado do POJO
+  final String lastMessageSenderId; // Adicionado do POJO
+  final DateTime? lastMessageAt; // Adicionado do POJO, pode ser nulo
 
-  ChatBackend({required this.chatId, required this.user1Id, required this.user2Id});
+  ChatBackend({
+    required this.chatId,
+    required this.user1Id,
+    required this.user2Id,
+    required this.lastMessage,
+    required this.lastMessageSenderId,
+    this.lastMessageAt,
+  });
 
   factory ChatBackend.fromJson(Map<String, dynamic> json) {
+    // Lida com a conversão de lastMessageAt, que pode ser um timestamp ou uma string ISO
+    DateTime? parsedLastMessageAt;
+    if (json['lastMessageAt'] != null) {
+      if (json['lastMessageAt'] is int) {
+        parsedLastMessageAt = DateTime.fromMillisecondsSinceEpoch(json['lastMessageAt']);
+      } else if (json['lastMessageAt'] is String) {
+        try {
+          parsedLastMessageAt = DateTime.parse(json['lastMessageAt']);
+        } catch (e) {
+          print('Erro ao parsear lastMessageAt como String: $e');
+        }
+      }
+    }
+
     return ChatBackend(
-      chatId: json['chatId'] as String,
-      user1Id: json['user1Id'] as String,
-      user2Id: json['user2Id'] as String,
+      chatId: json['id']?.toString() ?? '', // CORREÇÃO: Usar 'id' do POJO
+      user1Id: json['user1Id']?.toString() ?? '',
+      user2Id: json['user2Id']?.toString() ?? '',
+      lastMessage: json['lastMessage']?.toString() ?? '', // Mapeia lastMessage
+      lastMessageSenderId: json['lastMessageSenderId']?.toString() ?? '', // Mapeia lastMessageSenderId
+      lastMessageAt: parsedLastMessageAt, // Usa o DateTime parseado
     );
   }
 }
 
 // Modelo de dados para exibir um item de chat na lista da UI
-// Combina o ID do chat com o objeto Pessoa do outro usuário
+// Combina o ID do chat com o objeto Pessoa do outro usuário e a última mensagem
 class ChatDisplayItem {
   final String chatId;
   final String otherUserId;
   final Pessoa otherUser; // O objeto Pessoa completo do outro usuário no chat
+  final String lastMessage; // Última mensagem para exibição
+  final DateTime? lastMessageAt; // Timestamp da última mensagem
 
   ChatDisplayItem({
     required this.chatId,
     required this.otherUserId,
     required this.otherUser,
+    required this.lastMessage,
+    this.lastMessageAt,
   });
 }
 
@@ -92,11 +123,11 @@ class _TelaHistoricoChatsState extends State<TelaHistoricoChats> {
     }
 
     try {
-      final response = await http.get(Uri.parse('$BASE_URL/api/chats/user/userId?=$_currentUserId'));
+      final response = await http.get(Uri.parse('$BASE_URL/api/chats/user/$_currentUserId'));
 
       if (response.statusCode == 200) {
         List<dynamic> chatsJson = json.decode(utf8.decode(response.bodyBytes));
-        List<ChatBackend> fetchedChats = chatsJson.map((json) => ChatBackend.fromJson(json)).toList();
+        List<ChatBackend> fetchedChats = chatsJson.map((json) => ChatBackend.fromJson(json as Map<String, dynamic>)).toList();
 
         List<ChatDisplayItem> displayItems = [];
         for (var chatBackend in fetchedChats) {
@@ -111,6 +142,8 @@ class _TelaHistoricoChatsState extends State<TelaHistoricoChats> {
               chatId: chatBackend.chatId,
               otherUserId: otherUserId,
               otherUser: otherUser,
+              lastMessage: chatBackend.lastMessage, // Passa a última mensagem
+              lastMessageAt: chatBackend.lastMessageAt, // Passa o timestamp
             ));
           } else {
             print('Aviso: Não foi possível carregar o perfil do usuário $otherUserId para o chat ${chatBackend.chatId}');
@@ -288,12 +321,14 @@ class _TelaHistoricoChatsState extends State<TelaHistoricoChats> {
                                       color: Colors.black,
                                     ),
                                   ),
-                                  // O subtítulo é um placeholder. A última mensagem real seria buscada na TelaChat.
-                                  subtitle: const Text(
-                                    'Toque para ver as mensagens...',
+                                  // Exibe a última mensagem do chat
+                                  subtitle: Text(
+                                    chatItem.lastMessage.isNotEmpty
+                                        ? chatItem.lastMessage
+                                        : 'Nenhuma mensagem.',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       color: Colors.black,
                                       fontSize: 14,
                                       height: 1.4,
