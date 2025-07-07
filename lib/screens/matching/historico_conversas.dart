@@ -35,7 +35,7 @@ class TelaHistoricoChats extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               decoration: const BoxDecoration(
-                color: Colors.white,
+                color: Color(0xFFEFEFEF), // fundo do appbar efefef
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black12,
