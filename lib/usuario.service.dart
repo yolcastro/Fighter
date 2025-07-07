@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class UsuarioService {
-  static const String baseUrl = 'https://e9f6-187-18-138-85.ngrok-free.app/api/usuarios/';
+  static const String baseUrl = 'https://7600-187-18-138-85.ngrok-free.app/api/usuarios/';
 
   /// Cria um novo usuário no backend
   /// Recebe um mapa com os dados do usuário e retorna o UID gerado ou null em caso de erro

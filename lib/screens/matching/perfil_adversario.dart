@@ -30,7 +30,7 @@ class PerfilAdversarioPage extends StatelessWidget {
       return NetworkImage(fotoUrl);
     } else {
       // Placeholder para URLs inválidas ou vazias
-      return const AssetImage('assets/placeholder_profile.png'); // Certifique-se de ter esta imagem
+      return const AssetImage('assets/usuario.jpg'); // Certifique-se de ter esta imagem
     }
   }
 

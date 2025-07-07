@@ -155,7 +155,7 @@ class _PerfilUsuarioPageState extends State<PerfilUsuarioPage> {
       return NetworkImage(fotoUrl);
     } else {
       // Placeholder para URLs inválidas ou vazias
-      return const AssetImage('assets/placeholder_profile.png'); // Certifique-se de ter esta imagem
+      return const AssetImage('assets/usuario.png'); // Certifique-se de ter esta imagem
     }
   }
 

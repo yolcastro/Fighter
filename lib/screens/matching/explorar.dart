@@ -37,7 +37,7 @@ class Pessoa {
   });
 
   factory Pessoa.fromJson(Map<String, dynamic> json) {
-    const String defaultPlaceholderImage = 'https://e-quester.com/placeholder-image-person-jpg/';
+    const String defaultPlaceholderImage = 'assets/usuario.jpg';
 
     int calculatedAge = 0;
     String rawDataNascimento = json['dataNascimento'] ?? '';
@@ -110,7 +110,7 @@ class _TelaExplorarState extends State<TelaExplorar> {
     }
 
     // Supondo que você tenha um endpoint para buscar um único usuário pelo ID
-    final String apiUrl = 'https://e9f6-187-18-138-85.ngrok-free.app/api/usuarios/$currentUid';
+    final String apiUrl = 'https://7600-187-18-138-85.ngrok-free.app/api/usuarios/$currentUid';
 
     try {
       final response = await http.get(Uri.parse(apiUrl));
@@ -148,7 +148,7 @@ class _TelaExplorarState extends State<TelaExplorar> {
     List<String> likedUserIds = [];
     try {
       final likedUsersResponse = await http.get(
-        Uri.parse('https://e9f6-187-18-138-85.ngrok-free.app/api/likes/sent/$currentUid'),
+        Uri.parse('https://7600-187-18-138-85.ngrok-free.app/api/likes/sent/$currentUid'),
       );
 
       if (likedUsersResponse.statusCode == 200) {
@@ -162,7 +162,7 @@ class _TelaExplorarState extends State<TelaExplorar> {
     }
 
     // 2. Buscar todos os usuários filtrados
-    String baseUrl = 'https://e9f6-187-18-138-85.ngrok-free.app/api/usuarios/filtrar';
+    String baseUrl = 'https://7600-187-18-138-85.ngrok-free.app/api/usuarios/filtrar';
     Map<String, String> queryParams = {};
     if (widget.filtros.isNotEmpty) {
       widget.filtros.forEach((key, value) {
@@ -249,7 +249,7 @@ class _TelaExplorarState extends State<TelaExplorar> {
       }
 
       final Uri likeUri = Uri.parse(
-        'https://e9f6-187-18-138-85.ngrok-free.app/api/likes/create'
+        'https://7600-187-18-138-85.ngrok-free.app/api/likes/create'
             '?senderId=$senderId&receiverId=$receiverId',
       );
 
@@ -265,7 +265,7 @@ class _TelaExplorarState extends State<TelaExplorar> {
           // NOVO: Verificar se houve um match
           try {
             final Uri checkMatchUri = Uri.parse(
-              'https://e9f6-187-18-138-85.ngrok-free.app/api/likes/check?senderId=$receiverId&receiverId=$senderId',
+              'https://7600-187-18-138-85.ngrok-free.app/api/likes/check?senderId=$receiverId&receiverId=$senderId',
             );
             final checkMatchResponse = await http.get(checkMatchUri);
 
@@ -287,7 +287,7 @@ class _TelaExplorarState extends State<TelaExplorar> {
               if (isMatch) {
                 print('MATCH! $senderId e $receiverId deram match!');
                 // Tenta criar o chat
-                final Uri createChatUri = Uri.parse('https://e9f6-187-18-138-85.ngrok-free.app/api/chats/create');
+                final Uri createChatUri = Uri.parse('https://7600-187-18-138-85.ngrok-free.app/api/chats/create');
                 final chatResponse = await http.post(
                   createChatUri,
                   headers: {'Content-Type': 'application/json'},

@@ -7,7 +7,7 @@ import 'dart:convert'; // Importar para trabalhar com JSON
 import 'dart:async'; // Importar para usar Timer
 
 // URL base da sua API. Certifique-se de que esta URL está correta e acessível.
-const String BASE_URL = 'https://e9f6-187-18-138-85.ngrok-free.app';
+const String BASE_URL = 'https://7600-187-18-138-85.ngrok-free.app';
 
 class Mensagem {
   final String senderId; // ID do remetente

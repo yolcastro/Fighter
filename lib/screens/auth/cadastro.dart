@@ -124,7 +124,7 @@ class _TelaCadastroState extends State<TelaCadastro> {
   }
 
   Future<void> cadastrarUsuario(String email, String password, String displayName) async {
-    final url = Uri.parse('https://e9f6-187-18-138-85.ngrok-free.app/api/auth/register');
+    final url = Uri.parse('https://7600-187-18-138-85.ngrok-free.app/api/auth/register');
 
     try {
       final response = await http.post(

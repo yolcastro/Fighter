@@ -6,7 +6,7 @@ import 'chat.dart'; // Importe a tela de chat
 import 'explorar.dart'; // Importe para usar a classe Pessoa
 
 // URL base da sua API. Certifique-se de que esta URL está correta e acessível.
-const String BASE_URL = 'https://e9f6-187-18-138-85.ngrok-free.app';
+const String BASE_URL = 'https://7600-187-18-138-85.ngrok-free.app';
 
 // Modelo para o objeto Chat retornado pela API (GET /api/chats/user/{userId})
 class ChatBackend {
@@ -194,7 +194,7 @@ class _TelaHistoricoChatsState extends State<TelaHistoricoChats> {
       return NetworkImage(fotoUrl);
     } else {
       // Placeholder para URLs inválidas ou vazias
-      return const AssetImage('assets/placeholder_profile.png'); // Certifique-se de ter esta imagem
+      return const AssetImage('assets/usuario.jpg'); // Certifique-se de ter esta imagem
     }
   }
 

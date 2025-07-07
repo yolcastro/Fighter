@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart'; // Importe para usar DateFormat
 
 import 'package:fighter_app/usuario.service.dart';
 import 'editar_artes.dart';
@@ -67,6 +68,19 @@ class _EditarPerfilState extends State<EditarPerfil> {
     carregarDadosUsuario();
   }
 
+  // Função auxiliar para obter o número do mês a partir do nome
+  int _obterNumeroMes(String mesNome) {
+    return meses.indexOf(mesNome) + 1;
+  }
+
+  // Função auxiliar para obter o nome do mês a partir do número
+  String _obterNomeMes(int mesNumero) {
+    if (mesNumero >= 1 && mesNumero <= 12) {
+      return meses[mesNumero - 1];
+    }
+    return 'janeiro'; // Padrão
+  }
+
   Future<void> carregarDadosUsuario() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -90,12 +104,16 @@ class _EditarPerfilState extends State<EditarPerfil> {
         estadoSelecionado = partes[1].trim();
       }
 
-      if (dados['dataNascimento'] != null) {
-        final partes = dados['dataNascimento'].split(' de ');
-        if (partes.length == 3) {
-          diaSelecionado = int.tryParse(partes[0]) ?? diaSelecionado;
-          mesSelecionado = partes[1];
-          anoSelecionado = int.tryParse(partes[2]) ?? anoSelecionado;
+      // CORREÇÃO: Parsear dataNascimento no formato DD/MM/YYYY
+      if (dados['dataNascimento'] != null && dados['dataNascimento'].isNotEmpty) {
+        try {
+          final DateTime parsedDate = DateFormat('dd/MM/yyyy').parse(dados['dataNascimento']);
+          diaSelecionado = parsedDate.day;
+          mesSelecionado = _obterNomeMes(parsedDate.month);
+          anoSelecionado = parsedDate.year;
+        } catch (e) {
+          print('Erro ao parsear dataNascimento (DD/MM/YYYY) em EditarPerfil: $e');
+          // Manter valores padrão se o parse falhar
         }
       }
     });
@@ -133,7 +151,13 @@ class _EditarPerfilState extends State<EditarPerfil> {
     if (cidadeSelecionada != null && estadoSelecionado != null) {
       dadosAtualizados['localizacao'] = '$cidadeSelecionada - $estadoSelecionado';
     }
-    dadosAtualizados['dataNascimento'] = '$diaSelecionado de $mesSelecionado de $anoSelecionado';
+
+    // CORREÇÃO: Formatar dataNascimento para DD/MM/YYYY antes de salvar
+    final String formattedDay = diaSelecionado.toString().padLeft(2, '0');
+    final String formattedMonth = _obterNumeroMes(mesSelecionado).toString().padLeft(2, '0');
+    final String formattedYear = anoSelecionado.toString();
+    dadosAtualizados['dataNascimento'] = '$formattedDay/$formattedMonth/$formattedYear';
+
 
     if (dadosAtualizados.isNotEmpty) {
       await UsuarioService.atualizarUsuario(user.uid, dadosAtualizados);
