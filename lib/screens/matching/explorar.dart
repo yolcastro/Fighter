@@ -328,55 +328,6 @@ class _TelaExplorarState extends State<TelaExplorar> {
     );
   }
 
-  Future<void> _confirmarSaida() async {
-    final confirmar = await showDialog<bool>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        contentPadding: const EdgeInsets.symmetric(vertical: 16),
-        children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24.0),
-            child: Text(
-              'Deseja sair da conta?',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
-              ),
-              TextButton(
-                onPressed: () async {
-                  await FirebaseAuth.instance.signOut();
-                  if (mounted) {
-                    Navigator.pop(context, true);
-                  }
-                },
-                child: const Text('Sair', style: TextStyle(color: Color(0xFF8B2E2E))),
-              ),
-            ],
-          )
-        ],
-      ),
-    );
-
-    if (confirmar == true) {
-      if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          '/login',
-          (route) => false,
-        );
-      }
-    }
-  }
-
   Future<bool> _onWillPop() async {
     exit(0);
   }
@@ -570,74 +521,63 @@ class _TelaExplorarState extends State<TelaExplorar> {
     );
   }
 
-  Widget _buildBotaoVoltar() {
-    return IconButton(
-      icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF8B2E2E)),
-      onPressed: _confirmarSaida,
-      splashRadius: 24,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: _onWillPop,
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF5F5F5),
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        _buildBotaoVoltar(),
-                        const SizedBox(width: 12),
-                        const Text(
-                          'Explorar',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF8B2E2E),
-                          ),
-                        ),
-                      ],
+@override
+Widget build(BuildContext context) {
+  return WillPopScope(
+    onWillPop: _onWillPop,
+    child: Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Explorar',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Color.fromARGB(255, 0, 0, 0),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.chat_bubble_outline, color: Color(0xFF8B2E2E)),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const TelaHistoricoChats()),
-                        );
-                      },
-                      splashRadius: 24,
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.person_outline, color: Color(0xFF8B2E2E)),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const PerfilUsuarioPage()),
-                        );
-                      },
-                      splashRadius: 24,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                Expanded(
-                  child: _buildPerfil(),
-                ),
-              ],
-            ),
+                  ),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.chat_bubble_outline, color: Color(0xFF8B2E2E)),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const TelaHistoricoChats()),
+                          );
+                        },
+                        splashRadius: 24,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.person_outline, color: Color(0xFF8B2E2E)),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const PerfilUsuarioPage()),
+                          );
+                        },
+                        splashRadius: 24,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Expanded(
+                child: _buildPerfil(),
+              ),
+            ],
           ),
-        ),
-      ),
-    );
-  }
-}
+        ), 
+      ), 
+    ); 
+  } 
+} 
