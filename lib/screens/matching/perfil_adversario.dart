@@ -15,6 +15,46 @@ class PerfilAdversarioPage extends StatelessWidget {
     return 'Categoria Fora do UFC';
   }
 
+  int calcularIdade(String data) {
+    try {
+      final partes = data.split(' de ');
+      if (partes.length == 3) {
+        final dia = int.tryParse(partes[0]) ?? 1;
+        final mesStr = partes[1].toLowerCase();
+        final ano = int.tryParse(partes[2]) ?? 2002;
+
+        final meses = {
+          'janeiro': 1,
+          'fevereiro': 2,
+          'março': 3,
+          'abril': 4,
+          'maio': 5,
+          'junho': 6,
+          'julho': 7,
+          'agosto': 8,
+          'setembro': 9,
+          'outubro': 10,
+          'novembro': 11,
+          'dezembro': 12,
+        };
+
+        final mes = meses[mesStr] ?? 1;
+        final nascimento = DateTime(ano, mes, dia);
+        final hoje = DateTime.now();
+
+        int idade = hoje.year - nascimento.year;
+        if (hoje.month < nascimento.month ||
+            (hoje.month == nascimento.month && hoje.day < nascimento.day)) {
+          idade--;
+        }
+        return idade;
+      }
+    } catch (e) {
+      print('Erro ao calcular idade: $e');
+    }
+    return 0;
+  }
+
   @override
   Widget build(BuildContext context) {
     final String nome = 'Marina';
@@ -24,6 +64,9 @@ class PerfilAdversarioPage extends StatelessWidget {
     final String local = 'Fortaleza, Ceará';
     final String descricao = 'Capoeirista com alma leve. Treino é conexão.';
     final List<String> estilos = ['Capoeira - Intermediário'];
+    final String dataNascimento = '5 de maio de 2002';
+
+    final int idade = calcularIdade(dataNascimento);
 
     return Scaffold(
       backgroundColor: Colors.white, // fundo geral branco
@@ -78,7 +121,7 @@ class PerfilAdversarioPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 20),
                     Text(
-                      nome,
+                      '$nome, $idade',
                       style: const TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,

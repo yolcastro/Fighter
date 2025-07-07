@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fighter_app/usuario.service.dart';
 import 'editar.dart';
+import 'perfil_usuario.dart'; // ajuste esse import ao seu caminho real
 
 class EditarArtes extends StatefulWidget {
   const EditarArtes({super.key});
@@ -57,10 +58,11 @@ class _EditarArtesState extends State<EditarArtes> {
       'arteMarcial': selecionadas,
     });
 
-    // Após salvar, volta para EditarPerfil e força recarregamento dos dados atualizados
-    Navigator.pushReplacement(
+    // Após salvar, vai para a TelaPerfilUsuario
+    Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (_) => const EditarPerfil()),
+      MaterialPageRoute(builder: (_) => const PerfilUsuarioPage()),
+      (Route<dynamic> route) => false, // remove todas as rotas anteriores
     );
   }
 
@@ -197,3 +199,4 @@ class _EditarArtesState extends State<EditarArtes> {
     );
   }
 }
+

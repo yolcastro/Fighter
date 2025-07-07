@@ -17,6 +17,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
   final TextEditingController nomeController = TextEditingController();
   final TextEditingController generoController = TextEditingController();
   final TextEditingController alturaController = TextEditingController();
+  final TextEditingController descricaoController = TextEditingController();
 
   File? _imagemSelecionada;
 
@@ -77,6 +78,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
       nomeController.text = dados['nome'] ?? '';
       generoController.text = dados['sexo'] ?? '';
       alturaController.text = (dados['alturaEmCm'] ?? '').toString();
+      descricaoController.text = dados['descricao'] ?? '';
 
       pesoCategoriaSelecionada = categoriasPesoUFC.contains(dados['pesoCategoria'])
           ? dados['pesoCategoria']
@@ -114,6 +116,16 @@ class _EditarPerfilState extends State<EditarPerfil> {
     if (alturaController.text.trim().isNotEmpty) {
       final altura = int.tryParse(alturaController.text.trim());
       if (altura != null) dadosAtualizados['alturaEmCm'] = altura;
+    }
+    if (descricaoController.text.trim().isNotEmpty) {
+      final descricao = descricaoController.text.trim();
+      if (descricao.length > 250) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('A descrição deve ter no máximo 250 caracteres.')),
+        );
+        return;
+      }
+      dadosAtualizados['descricao'] = descricao;
     }
     if (pesoCategoriaSelecionada != null) {
       dadosAtualizados['pesoCategoria'] = pesoCategoriaSelecionada;
@@ -173,9 +185,18 @@ class _EditarPerfilState extends State<EditarPerfil> {
   }
 
   @override
+  void dispose() {
+    nomeController.dispose();
+    generoController.dispose();
+    alturaController.dispose();
+    descricaoController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFEFEFEF),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
@@ -193,6 +214,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
                     _buildCampo('Gênero', generoController),
                     _buildAlturaCampo(),
                     _buildDropdownCampo('Categoria de Peso', pesoCategoriaSelecionada, categoriasPesoUFC),
+                    _buildDescricaoCampo(),
                     const SizedBox(height: 30),
                     _buildAlterarArtesButton(),
                   ],
@@ -210,9 +232,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: const BoxDecoration(
         color: Color(0xFFEFEFEF),
-        boxShadow: [
-          BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
       ),
       child: Stack(
         alignment: Alignment.center,
@@ -288,6 +308,28 @@ class _EditarPerfilState extends State<EditarPerfil> {
               style: const TextStyle(fontSize: 16),
             ),
           ),
+        ),
+        const Divider(thickness: 1, color: Colors.black),
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
+  Widget _buildDescricaoCampo() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Descrição (máx. 250 caracteres)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        TextField(
+          controller: descricaoController,
+          maxLines: null,
+          maxLength: 250,
+          decoration: const InputDecoration(
+            border: InputBorder.none,
+            isDense: true,
+            contentPadding: EdgeInsets.symmetric(vertical: 4),
+          ),
+          style: const TextStyle(fontSize: 16),
         ),
         const Divider(thickness: 1, color: Colors.black),
         const SizedBox(height: 12),

@@ -81,7 +81,16 @@ class _TelaChatState extends State<TelaChat> {
         appBar: PreferredSize(
           preferredSize: const Size.fromHeight(60),
           child: Container(
-            color: const Color(0xFFF5F5F5),
+            decoration: const BoxDecoration(
+              color: Color(0xFFEFEFEF),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 6,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            ),
             child: SafeArea(
               child: Padding(
                 padding: const EdgeInsets.only(top: 6),
@@ -169,7 +178,7 @@ class _TelaChatState extends State<TelaChat> {
                                 bottomLeft: meu ? const Radius.circular(20) : const Radius.circular(4),
                                 bottomRight: meu ? const Radius.circular(4) : const Radius.circular(20),
                               ),
-                              boxShadow: [
+                              boxShadow: const [
                                 BoxShadow(
                                   color: Colors.black12,
                                   blurRadius: 3,
@@ -200,57 +209,59 @@ class _TelaChatState extends State<TelaChat> {
                 },
               ),
             ),
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12.withOpacity(0.07),
-                    blurRadius: 10,
-                    offset: const Offset(0, -2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.black12),
-                        borderRadius: BorderRadius.circular(30),
-                        color: Colors.white,
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: TextField(
-                        controller: _controller,
-                        decoration: const InputDecoration(
-                          hintText: 'Digite sua mensagem',
-                          border: InputBorder.none,
-                          hintStyle: TextStyle(color: Colors.black38),
-                          isDense: true,
-                          contentPadding: EdgeInsets.symmetric(vertical: 16),
+            SafeArea(
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFEFEFEF), // fundo da barra de digitar EFEFEF
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 10,
+                      offset: Offset(0, -2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.black12),
+                          borderRadius: BorderRadius.circular(30),
+                          color: Colors.white, // campo de digitação branco
                         ),
-                        minLines: 1,
-                        maxLines: 4,
-                        textInputAction: TextInputAction.send,
-                        onSubmitted: (_) => _enviarMensagem(),
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: TextField(
+                          controller: _controller,
+                          decoration: const InputDecoration(
+                            hintText: 'Digite sua mensagem',
+                            border: InputBorder.none,
+                            hintStyle: TextStyle(color: Colors.black38),
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(vertical: 16),
+                          ),
+                          minLines: 1,
+                          maxLines: 4,
+                          textInputAction: TextInputAction.send,
+                          onSubmitted: (_) => _enviarMensagem(),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(30),
-                      onTap: _enviarMensagem,
-                      child: const Padding(
-                        padding: EdgeInsets.all(10),
-                        child: Icon(Icons.send, color: Color(0xFF8B2E2E), size: 28),
+                    const SizedBox(width: 12),
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(30),
+                        onTap: _enviarMensagem,
+                        child: const Padding(
+                          padding: EdgeInsets.all(10),
+                          child: Icon(Icons.send, color: Color(0xFF8B2E2E), size: 28),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
