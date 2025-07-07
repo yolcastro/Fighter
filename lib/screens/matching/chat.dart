@@ -4,12 +4,16 @@ import 'perfil_adversario.dart';
 import 'explorar.dart'; // Certifique-se de que a classe Pessoa está definida aqui e importada
 import 'package:http/http.dart' as http; // Importar pacote HTTP
 import 'dart:convert'; // Importar para trabalhar com JSON
+import 'dart:async'; // Importar para usar Timer
+
+// URL base da sua API. Certifique-se de que esta URL está correta e acessível.
+const String BASE_URL = 'https://e9f6-187-18-138-85.ngrok-free.app';
 
 class Mensagem {
   final String senderId; // ID do remetente
   final String receiverId; // ID do destinatário (opcional para exibição, mas útil para o envio)
   final String content; // Conteúdo da mensagem
-  final String timestamp; // Timestamp da mensagem
+  final DateTime timestamp; // Timestamp da mensagem, agora como DateTime
 
   Mensagem({
     required this.senderId,
@@ -19,13 +23,22 @@ class Mensagem {
   });
 
   // Factory constructor para criar Mensagem a partir de JSON da API
-  // A propriedade 'meu' é calculada aqui para simplificar a lógica na UI
   factory Mensagem.fromJson(Map<String, dynamic> json) {
+    // Tenta parsear o timestamp. O backend retorna um ISO 8601 String.
+    DateTime parsedTimestamp;
+    try {
+      parsedTimestamp = DateTime.parse(json['timestamp'] as String);
+    } catch (e) {
+      // Fallback para caso o timestamp não esteja no formato esperado
+      print('Erro ao parsear timestamp da mensagem: $e. Usando DateTime.now().');
+      parsedTimestamp = DateTime.now();
+    }
+
     return Mensagem(
       senderId: json['senderId'] as String,
       receiverId: json['receiverId'] as String,
       content: json['content'] as String,
-      timestamp: json['timestamp'] as String,
+      timestamp: parsedTimestamp,
     );
   }
 
@@ -35,7 +48,7 @@ class Mensagem {
       'senderId': senderId,
       'receiverId': receiverId,
       'content': content,
-      'timestamp': timestamp, // Timestamp pode ser gerado no backend, mas incluo por completude
+      'timestamp': timestamp.toIso8601String(), // Converte DateTime para String ISO 8601
     };
   }
 }
@@ -67,50 +80,99 @@ class _TelaChatState extends State<TelaChat> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isLoading = true; // Estado para controlar o carregamento
+  Timer? _pollingTimer; // Timer para o polling de mensagens
 
   @override
   void initState() {
     super.initState();
     _fetchMessages(); // Inicia o carregamento das mensagens ao iniciar a tela
+    _startPolling(); // Inicia o polling
   }
 
-  Future<void> _fetchMessages() async {
-    setState(() {
-      _isLoading = true; // Inicia o estado de carregamento
+  // Inicia o timer para buscar mensagens periodicamente
+  void _startPolling() {
+    _pollingTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      // Busca mensagens apenas se a tela estiver ativa e não estiver carregando
+      if (mounted && !_isLoading) {
+        _fetchMessages(isPolling: true);
+      }
     });
+  }
+
+  // Para a busca de mensagens periódica
+  void _stopPolling() {
+    _pollingTimer?.cancel();
+  }
+
+  Future<void> _fetchMessages({bool isPolling = false}) async {
+    // Se não for um polling, mostra o indicador de carregamento
+    if (!isPolling) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
+
     try {
       final response = await http.get(
-        Uri.parse('https://e9f6-187-18-138-85.ngrok-free.app/api/chats/${widget.chatId}/messages'),
-        // Certifique-se de que a URL base e a porta estão corretas
-        // Se sua API estiver em outro local, ajuste 'localhost:8080'
+        Uri.parse('$BASE_URL/api/chats/${widget.chatId}/messages'),
       );
 
       if (response.statusCode == 200) {
         final List<dynamic> messagesJson = json.decode(response.body);
+        final List<Mensagem> fetchedMessages = messagesJson
+            .map((json) => Mensagem.fromJson(json as Map<String, dynamic>))
+            .toList();
+
+        // Verifica se há novas mensagens para adicionar
+        bool newMessagesAdded = false;
+        if (fetchedMessages.length > _mensagens.length) {
+          // Adiciona apenas as mensagens que ainda não estão na lista
+          _mensagens.addAll(fetchedMessages.sublist(_mensagens.length));
+          newMessagesAdded = true;
+        } else if (fetchedMessages.length < _mensagens.length) {
+          // Se por algum motivo a lista do servidor for menor, recarrega tudo
+          _mensagens = fetchedMessages;
+          newMessagesAdded = true; // Considera como novas mensagens para rolar
+        } else {
+          // Se o número de mensagens for o mesmo, verifica se o conteúdo mudou
+          // Isso é um fallback, idealmente o backend garantiria a ordem e não haveria necessidade
+          // de verificar cada mensagem. Para um chat simples, comparar o último elemento pode ser suficiente.
+          if (_mensagens.isNotEmpty && fetchedMessages.isNotEmpty &&
+              (_mensagens.last.content != fetchedMessages.last.content ||
+               _mensagens.last.timestamp != fetchedMessages.last.timestamp)) {
+            _mensagens = fetchedMessages;
+            newMessagesAdded = true;
+          }
+        }
+
         setState(() {
-          _mensagens = messagesJson
-              .map((json) => Mensagem.fromJson(json))
-              .toList();
           _isLoading = false; // Finaliza o estado de carregamento
         });
-        _scrollToBottom(); // Rola para o final após carregar as mensagens
+
+        if (newMessagesAdded) {
+          _scrollToBottom(); // Rola para o final apenas se novas mensagens foram adicionadas
+        }
       } else {
         print('Falha ao carregar mensagens: ${response.statusCode} ${response.body}');
+        if (!isPolling) { // Apenas mostra o SnackBar se não for um polling em segundo plano
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Erro ao carregar mensagens.')),
+          );
+        }
         setState(() {
           _isLoading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Erro ao carregar mensagens.')),
-        );
       }
     } catch (e) {
       print('Erro ao carregar mensagens: $e');
+      if (!isPolling) { // Apenas mostra o SnackBar se não for um polling em segundo plano
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erro de conexão ao carregar mensagens.')),
+        );
+      }
       setState(() {
         _isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Erro de conexão ao carregar mensagens.')),
-      );
     }
   }
 
@@ -123,7 +185,7 @@ class _TelaChatState extends State<TelaChat> {
       senderId: widget.currentUserId,
       receiverId: widget.otherUserId,
       content: texto,
-      timestamp: DateTime.now().toIso8601String(), // Timestamp local, pode ser sobrescrito pelo backend
+      timestamp: DateTime.now(), // Usar DateTime.now()
     );
 
     // Adicionar a mensagem à lista local para exibição imediata
@@ -135,7 +197,7 @@ class _TelaChatState extends State<TelaChat> {
 
     try {
       final response = await http.post(
-       Uri.parse('https://e9f6-187-18-138-85.ngrok-free.app/api/chats/${widget.chatId}/messages/send'),
+        Uri.parse('$BASE_URL/api/chats/${widget.chatId}/messages/send'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },
@@ -144,9 +206,7 @@ class _TelaChatState extends State<TelaChat> {
 
       if (response.statusCode == 201) { // 201 CREATED é o esperado para o envio de mensagens
         print('Mensagem enviada com sucesso! ${response.body}');
-        // Se desejar, você pode refetch as mensagens para obter o timestamp exato do servidor,
-        // ou atualizar apenas o timestamp da mensagem localmente.
-        // Por simplicidade, mantemos a adição local imediata.
+        // O polling se encarregará de buscar a mensagem com o timestamp real do servidor
       } else {
         print('Falha ao enviar mensagem: ${response.statusCode} ${response.body}');
         // Remover a mensagem que foi adicionada localmente se o envio falhar
@@ -185,11 +245,16 @@ class _TelaChatState extends State<TelaChat> {
   void dispose() {
     _controller.dispose();
     _scrollController.dispose();
+    _stopPolling(); // Importante: Cancelar o timer ao sair da tela
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Determina a foto do próprio usuário (pode ser obtida do perfil do usuário logado)
+    // Por enquanto, usando um placeholder. Idealmente, você passaria o objeto Pessoa do usuário logado para TelaChat.
+    final String fotoUsuario = 'https://placehold.co/100x100/A0A0A0/FFFFFF?text=Eu'; // Placeholder
+
     return Scaffold(
       backgroundColor: const Color(0xFFF9F9F9),
       appBar: AppBar(
@@ -268,7 +333,7 @@ class _TelaChatState extends State<TelaChat> {
                               ),
                             ),
                             child: Text(
-                              mensagem.content, // Usar 'content' em vez de 'texto'
+                              mensagem.content,
                               style: TextStyle(
                                 color: isMyMessage ? Colors.white : Colors.black87,
                                 fontSize: 15,
