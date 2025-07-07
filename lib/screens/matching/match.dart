@@ -1,39 +1,47 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'explorar.dart'; // Certifique-se de que este import está correto
+import 'chat.dart'; // Importe a tela de chat
+
 
 class TelaMatch extends StatelessWidget {
-  final String nome1;
-  final String foto1;
-  final String nome2;
-  final String foto2;
   final String chatId;
   final String currentUserId;
-  final String otherUserId;
-  final String otherUserNome;
-  final String otherUserFoto;
+
+  // NOVO: Adiciona o objeto Pessoa completo para ambos os usuários
+  final Pessoa currentUser; // O usuário logado
+  final Pessoa otherUser;  // O usuário com quem deu match
 
   const TelaMatch({
     super.key,
-    required this.nome1,
-    required this.foto1,
-    required this.nome2,
-    required this.foto2,
     required this.chatId,
     required this.currentUserId,
-    required this.otherUserId,
-    required this.otherUserNome,
-    required this.otherUserFoto,
+    required this.currentUser, // REQUERIDO
+    required this.otherUser,   // REQUERIDO
+    // REMOVA as requisições de nome e foto individuais aqui
   });
 
   @override
   Widget build(BuildContext context) {
-    // ... (restante do código build)
+    final size = MediaQuery.of(context).size;
+    final avatarSize = size.width * 0.3;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Container(
-          // ... (padding e decoration)
+          width: double.infinity,
+          padding: EdgeInsets.symmetric(
+            horizontal: size.width * 0.08,
+            vertical: size.height * 0.06,
+          ),
+          decoration: const BoxDecoration(
+            gradient: RadialGradient(
+              center: Alignment(0, -0.5),
+              radius: 1.2,
+              colors: [Color(0xFFF5DCDC), Colors.white],
+            ),
+          ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -43,7 +51,7 @@ class TelaMatch extends StatelessWidget {
               SizedBox(height: size.height * 0.04),
               _buildSubtitle(size),
               SizedBox(height: size.height * 0.06),
-              _buildPrimaryButton(size, context),
+              _buildPrimaryButton(size, context), // Passa o contexto aqui
               SizedBox(height: size.height * 0.03),
               _buildSecondaryButton(size, context),
             ],
@@ -67,7 +75,7 @@ class TelaMatch extends StatelessWidget {
     );
   }
 
-  Widget _buildAvatarsRow(Size size, double avatarSize) {
+   Widget _buildAvatarsRow(Size size, double avatarSize) {
     return SizedBox(
       height: avatarSize + 30,
       child: Stack(
@@ -75,11 +83,11 @@ class TelaMatch extends StatelessWidget {
         children: [
           Positioned(
             left: size.width * 0.18,
-            child: _fotoCircular(foto1, avatarSize),
+            child: _fotoCircular(currentUser.foto, avatarSize), // Usar currentUser.foto
           ),
           Positioned(
             right: size.width * 0.18,
-            child: _fotoCircular(foto2, avatarSize),
+            child: _fotoCircular(otherUser.foto, avatarSize),   // Usar otherUser.foto
           ),
         ],
       ),
@@ -104,7 +112,19 @@ class TelaMatch extends StatelessWidget {
       width: size.width * 0.75,
       child: ElevatedButton(
         onPressed: () {
-          Navigator.pushNamed(context, '/chat');
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => TelaChat(
+                chatId: chatId,
+                currentUserId: currentUserId,
+                otherUserId: otherUser.id, // Acessa o ID do objeto Pessoa
+                otherUserNome: otherUser.nome, // Acessa o nome do objeto Pessoa
+                otherUserFoto: otherUser.foto, // Acessa a foto do objeto Pessoa
+                otherUser: otherUser, // PASSA O OBJETO PESSOA COMPLETO
+              ),
+            ),
+          );
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF8B2E2E),
@@ -119,7 +139,7 @@ class TelaMatch extends StatelessWidget {
             fontSize: 16,
             color: Colors.white,
             fontWeight: FontWeight.bold,
-            letterSpacing: 1.1,
+            letterSpacing: 1.2,
           ),
         ),
       ),

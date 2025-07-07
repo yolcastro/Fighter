@@ -110,7 +110,7 @@ class _TelaExplorarState extends State<TelaExplorar> {
     }
 
     // Supondo que você tenha um endpoint para buscar um único usuário pelo ID
-    final String apiUrl = 'https://e9f6-187-18-138-85.ngrok-free.app/api/usuarios/$currentUid'; 
+    final String apiUrl = 'https://e9f6-187-18-138-85.ngrok-free.app/api/usuarios/$currentUid';
 
     try {
       final response = await http.get(Uri.parse(apiUrl));
@@ -188,7 +188,7 @@ class _TelaExplorarState extends State<TelaExplorar> {
         fetchedPessoas = fetchedPessoas.where((pessoa) =>
                 pessoa.id != currentUid && // Remove o próprio usuário
                 !likedUserIds.contains(pessoa.id) // Remove usuários já curtidos
-            ).toList();
+              ).toList();
 
         setState(() {
           pessoas = fetchedPessoas;
@@ -227,9 +227,8 @@ class _TelaExplorarState extends State<TelaExplorar> {
     if (currentIndex < pessoas.length) {
       final User? currentUser = FirebaseAuth.instance.currentUser;
       final String? senderId = currentUser?.uid;
-      final String receiverId = pessoas[currentIndex].id;
-      print('DEBUG: SenderId being sent: $senderId');
-      print('DEBUG: ReceiverId being sent: $receiverId');
+      final Pessoa currentProfile = pessoas[currentIndex]; // Pegar o objeto Pessoa completo do perfil atual
+      final String receiverId = currentProfile.id;
 
       if (senderId == null || senderId.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -244,9 +243,7 @@ class _TelaExplorarState extends State<TelaExplorar> {
       );
 
       try {
-        final likeResponse = await http.post(
-          likeUri,
-        );
+        final likeResponse = await http.post(likeUri);
 
         if (likeResponse.statusCode == 200 || likeResponse.statusCode == 201) {
           print('Like enviado com sucesso de $senderId para $receiverId');
@@ -254,60 +251,79 @@ class _TelaExplorarState extends State<TelaExplorar> {
             const SnackBar(content: Text('Like enviado!')),
           );
 
-          // NOVO: Verificar se houve um match
+          // NOVO: Verificar se houve um match e criar chat
           try {
             final Uri checkMatchUri = Uri.parse(
               'https://e9f6-187-18-138-85.ngrok-free.app/api/likes/check?senderId=$receiverId&receiverId=$senderId',
             );
             final checkMatchResponse = await http.get(checkMatchUri);
 
-            if (checkMatchResponse.statusCode == 200) {
-              final bool isMatch = json.decode(checkMatchResponse.body);
-              if (isMatch) {
-                print('MATCH! $senderId e $receiverId deram match!');
-                // Navegar para a TelaMatch
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => TelaMatch(
-                      nome1: 'Você', // Substitua pelo nome do usuário logado
-                      foto1: 'assets/usuario.jpg', // Substitua pela foto do usuário logado
-                      nome2: pessoas[currentIndex].nome,
-                      foto2: pessoas[currentIndex].foto,
+            if (checkMatchResponse.statusCode == 200 && json.decode(checkMatchResponse.body)['match'] == true) {
+              print('MATCH! Criando chat...');
+              final Uri createChatUri = Uri.parse('https://e9f6-187-18-138-85.ngrok-free.app/api/chats/create');
+              final chatResponse = await http.post(
+                createChatUri,
+                headers: {'Content-Type': 'application/json'},
+                body: json.encode({
+                  'matchId': '${senderId}_$receiverId', // Ou algum ID de match gerado
+                  'user1Id': senderId,
+                  'user2Id': receiverId,
+                }),
+              );
+
+              final Map<String, dynamic> responseData = json.decode(chatResponse.body);
+
+              if (chatResponse.statusCode == 201 && responseData['chatId'] != null) {
+                final String createdChatId = responseData['chatId'];
+                if (_currentUserPessoa != null && currentProfile != null) {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => TelaMatch(
+                        chatId: createdChatId,
+                        currentUserId: _currentUserPessoa!.id,
+                        currentUser: _currentUserPessoa!,
+                        otherUser: currentProfile,
+                      ),
                     ),
-                  ),
-                );
+                  );
+                }
+                _fetchPessoas(); // Recarregar pessoas após um match e navegação
               } else {
-                print('Não houve match com ${pessoas[currentIndex].nome}.');
+                print('Falha ao criar chat: ${chatResponse.statusCode} - ${chatResponse.body}');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Erro ao criar chat: ${chatResponse.statusCode}')),
+                );
+                setState(() {
+                  pessoas.removeAt(currentIndex);
+                  if (pessoas.isEmpty) {
+                    _showNoMoreProfilesMessage();
+                  }
+                });
               }
             } else {
-              print('Erro ao verificar match: ${checkMatchResponse.statusCode} - ${checkMatchResponse.body}');
+              print('Não houve match com ${pessoas[currentIndex].nome}.');
+              setState(() {
+                pessoas.removeAt(currentIndex);
+                if (pessoas.isEmpty) {
+                  _showNoMoreProfilesMessage();
+                }
+              });
             }
           } catch (e) {
-            print('Erro na requisição de verificação de match: $e');
-          }
-
-          // A pessoa que acabou de ser curtida deve ser removida da lista.
-          // Em vez de _fetchPessoas completo, podemos remover localmente
-          // e ajustar o currentIndex, ou chamar _fetchPessoas para garantir consistência.
-          // Para esta solução, vamos remover localmente e depois avançar.
-          setState(() {
-            pessoas.removeAt(currentIndex); // Remove o perfil curtido
-            // Não incrementamos currentIndex aqui, pois removemos o item atual,
-            // e o próximo item já estará na posição 'currentIndex'.
-            // Se a lista ficar vazia, a interface de "sem mais perfis" será mostrada.
-          });
-          // Se a lista ficou vazia após a remoção, exibe a mensagem
-          if (pessoas.isEmpty) {
-            _showNoMoreProfilesMessage();
+            print('Erro na requisição de verificação de match/criação de chat: $e');
+            setState(() {
+              pessoas.removeAt(currentIndex);
+              if (pessoas.isEmpty) {
+                _showNoMoreProfilesMessage();
+              }
+            });
           }
         } else {
           print('Erro ao enviar like: ${likeResponse.statusCode} - ${likeResponse.body}');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Erro ao enviar like: ${likeResponse.statusCode}')),
           );
-          // Ainda avança para o próximo perfil mesmo com erro no like,
-          // mas o perfil com erro será filtrado na próxima recarga de _fetchPessoas
           setState(() {
             currentIndex++;
           });

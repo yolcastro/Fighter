@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:fighter_app/screens/matching/explorar.dart'; // Importe a classe Pessoa, se estiver lá
 
 class PerfilAdversarioPage extends StatelessWidget {
-  const PerfilAdversarioPage({super.key});
+  final Pessoa adversario; // NOVO: Objeto Pessoa para o adversário
+
+  const PerfilAdversarioPage({
+    super.key,
+    required this.adversario, // O adversário é obrigatório
+  });
 
   String categoriaPesoUFC(int peso) {
     if (peso <= 56) return 'Peso Mosca';
@@ -15,6 +21,8 @@ class PerfilAdversarioPage extends StatelessWidget {
     return 'Categoria Fora do UFC';
   }
 
+  // Esta função agora pode ser removida se a idade já vier calculada na Pessoa
+  // Ou mantida se Pessoa.idade for um getter que a calcula
   int calcularIdade(String data) {
     try {
       final partes = data.split(' de ');
@@ -24,18 +32,9 @@ class PerfilAdversarioPage extends StatelessWidget {
         final ano = int.tryParse(partes[2]) ?? 2002;
 
         final meses = {
-          'janeiro': 1,
-          'fevereiro': 2,
-          'março': 3,
-          'abril': 4,
-          'maio': 5,
-          'junho': 6,
-          'julho': 7,
-          'agosto': 8,
-          'setembro': 9,
-          'outubro': 10,
-          'novembro': 11,
-          'dezembro': 12,
+          'janeiro': 1, 'fevereiro': 2, 'março': 3, 'abril': 4, 'maio': 5,
+          'junho': 6, 'julho': 7, 'agosto': 8, 'setembro': 9, 'outubro': 10,
+          'novembro': 11, 'dezembro': 12,
         };
 
         final mes = meses[mesStr] ?? 1;
@@ -57,26 +56,27 @@ class PerfilAdversarioPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String nome = 'Marina';
-    final String genero = 'Mulher';
-    final int altura = 170;
-    final int peso = 62;
-    final String local = 'Fortaleza, Ceará';
-    final String descricao = 'Capoeirista com alma leve. Treino é conexão.';
-    final List<String> estilos = ['Capoeira - Intermediário'];
-    final String dataNascimento = '5 de maio de 2002';
+    // Usar os dados do objeto 'adversario'
+    final String nome = adversario.nome;
+    final String genero = adversario.genero;
+    final int altura = adversario.altura;
+    final int peso = adversario.peso;
+    final String local = adversario.local;
+    final String descricao = adversario.descricao;
+    final List<String> estilos = adversario.modalidades; // 'modalidades' é a lista de estilos/artes
+    final String fotoUrl = adversario.foto; // URL ou caminho da foto
 
-    final int idade = calcularIdade(dataNascimento);
+    final int idade = adversario.idade; // Usar a idade já calculada na Pessoa
 
     return Scaffold(
-      backgroundColor: Colors.white, // fundo geral branco
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               decoration: const BoxDecoration(
-                color: Color(0xFFEFEFEF), // cabeçalho efefef
+                color: Color(0xFFEFEFEF),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black12,
@@ -108,16 +108,17 @@ class PerfilAdversarioPage extends StatelessWidget {
                 ],
               ),
             ),
-
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const CircleAvatar(
+                    CircleAvatar(
                       radius: 70,
-                      backgroundImage: AssetImage('assets/marina.jpg'),
+                      backgroundImage: fotoUrl.startsWith('http')
+                          ? NetworkImage(fotoUrl) as ImageProvider
+                          : AssetImage(fotoUrl), // Para assets locais
                     ),
                     const SizedBox(height: 20),
                     Text(
@@ -153,7 +154,7 @@ class PerfilAdversarioPage extends StatelessWidget {
                       width: double.infinity,
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEFEFEF), // descrição fundo efefef
+                        color: const Color(0xFFEFEFEF),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Text(

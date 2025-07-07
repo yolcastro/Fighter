@@ -1,36 +1,42 @@
-// chat.dart
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http; // Importe http para requisições HTTP
-import 'dart:convert'; // Importe dart:convert para manipulação JSON
-import 'package:firebase_auth/firebase_auth.dart'; // Importe para obter o ID do usuário atual
-import 'historico_conversas.dart'; // Mantido caso seja usado na navegação de voltar
-import 'perfil_adversario.dart'; // Mantido caso seja usado para exibir o perfil do adversário
+import 'historico_conversas.dart';
+import 'perfil_adversario.dart';
+import 'explorar.dart'; // Certifique-se de que a classe Pessoa está definida aqui e importada
+import 'package:http/http.dart' as http; // Importar pacote HTTP
+import 'dart:convert'; // Importar para trabalhar com JSON
 
-// Classe Mensagem atualizada para corresponder à estrutura da API
 class Mensagem {
-  final String id; // ID da mensagem (opcional, mas bom para unicidade)
-  final String senderId;
-  final String receiverId;
-  final String content;
-  final DateTime timestamp;
+  final String senderId; // ID do remetente
+  final String receiverId; // ID do destinatário (opcional para exibição, mas útil para o envio)
+  final String content; // Conteúdo da mensagem
+  final String timestamp; // Timestamp da mensagem
 
   Mensagem({
-    required this.id,
     required this.senderId,
     required this.receiverId,
     required this.content,
     required this.timestamp,
   });
 
+  // Factory constructor para criar Mensagem a partir de JSON da API
+  // A propriedade 'meu' é calculada aqui para simplificar a lógica na UI
   factory Mensagem.fromJson(Map<String, dynamic> json) {
     return Mensagem(
-      id: json['id'] as String,
       senderId: json['senderId'] as String,
       receiverId: json['receiverId'] as String,
       content: json['content'] as String,
-      // Assumindo que timestamp é uma string ISO 8601 que DateTime.parse pode converter
-      timestamp: DateTime.parse(json['timestamp'] as String),
+      timestamp: json['timestamp'] as String,
     );
+  }
+
+  // Método para converter Mensagem para JSON (útil para envio)
+  Map<String, dynamic> toJson() {
+    return {
+      'senderId': senderId,
+      'receiverId': receiverId,
+      'content': content,
+      'timestamp': timestamp, // Timestamp pode ser gerado no backend, mas incluo por completude
+    };
   }
 }
 
@@ -40,6 +46,7 @@ class TelaChat extends StatefulWidget {
   final String otherUserId;
   final String otherUserNome;
   final String otherUserFoto;
+  final Pessoa otherUser;
 
   const TelaChat({
     super.key,
@@ -48,6 +55,7 @@ class TelaChat extends StatefulWidget {
     required this.otherUserId,
     required this.otherUserNome,
     required this.otherUserFoto,
+    required this.otherUser,
   });
 
   @override
@@ -55,129 +63,117 @@ class TelaChat extends StatefulWidget {
 }
 
 class _TelaChatState extends State<TelaChat> {
+  List<Mensagem> _mensagens = []; // Lista de mensagens vazia inicialmente
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  List<Mensagem> _messages = [];
-  bool _isLoadingChat = true;
-
-  // URL base para o seu backend. Use a mesma URL de explorar.dart
-  final String _baseUrl = 'https://e9f6-187-18-138-85.ngrok-free.app'; 
+  bool _isLoading = true; // Estado para controlar o carregamento
 
   @override
   void initState() {
     super.initState();
-    _fetchMessages(); // Busca as mensagens ao iniciar a tela
+    _fetchMessages(); // Inicia o carregamento das mensagens ao iniciar a tela
   }
 
-  // Método para buscar mensagens do chat via API
   Future<void> _fetchMessages() async {
     setState(() {
-      _isLoadingChat = true;
+      _isLoading = true; // Inicia o estado de carregamento
     });
-
-    final String apiUrl = '$_baseUrl/api/chats/${widget.chatId}/messages';
-    print('Buscando mensagens de: $apiUrl');
-
     try {
-      final response = await http.get(Uri.parse(apiUrl));
+      final response = await http.get(
+        Uri.parse('https://e9f6-187-18-138-85.ngrok-free.app/api/chats/${widget.chatId}/messages'),
+        // Certifique-se de que a URL base e a porta estão corretas
+        // Se sua API estiver em outro local, ajuste 'localhost:8080'
+      );
 
       if (response.statusCode == 200) {
-        List<dynamic> data = json.decode(response.body);
+        final List<dynamic> messagesJson = json.decode(response.body);
         setState(() {
-          _messages = data.map((json) => Mensagem.fromJson(json)).toList();
-          _isLoadingChat = false;
+          _mensagens = messagesJson
+              .map((json) => Mensagem.fromJson(json))
+              .toList();
+          _isLoading = false; // Finaliza o estado de carregamento
         });
-        _scrollToBottom();
-        print('Mensagens buscadas com sucesso: ${_messages.length}');
+        _scrollToBottom(); // Rola para o final após carregar as mensagens
       } else {
-        print('Falha ao carregar mensagens: ${response.statusCode} - ${response.body}');
+        print('Falha ao carregar mensagens: ${response.statusCode} ${response.body}');
         setState(() {
-          _isLoadingChat = false;
+          _isLoading = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao carregar mensagens: ${response.statusCode}')),
+          const SnackBar(content: Text('Erro ao carregar mensagens.')),
         );
       }
     } catch (e) {
-      print('Erro ao buscar mensagens: $e');
+      print('Erro ao carregar mensagens: $e');
       setState(() {
-        _isLoadingChat = false;
+        _isLoading = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro de conexão ao carregar mensagens.')),
+        const SnackBar(content: Text('Erro de conexão ao carregar mensagens.')),
       );
     }
   }
 
-  // Método para enviar mensagem via API
   void _enviarMensagem() async {
     final texto = _controller.text.trim();
     if (texto.isEmpty) return;
 
-    // Adiciona a mensagem à UI imediatamente para uma melhor experiência do usuário
-    // Ela será atualizada com o ID e timestamp reais da API
+    // Criar o objeto Mensagem para enviar à API
+    final Mensagem novaMensagem = Mensagem(
+      senderId: widget.currentUserId,
+      receiverId: widget.otherUserId,
+      content: texto,
+      timestamp: DateTime.now().toIso8601String(), // Timestamp local, pode ser sobrescrito pelo backend
+    );
+
+    // Adicionar a mensagem à lista local para exibição imediata
     setState(() {
-      _messages.add(Mensagem(
-        id: DateTime.now().millisecondsSinceEpoch.toString(), // ID temporário
-        senderId: widget.currentUserId,
-        receiverId: widget.otherUserId,
-        content: texto,
-        timestamp: DateTime.now(),
-      ));
+      _mensagens.add(novaMensagem);
       _controller.clear();
     });
     _scrollToBottom();
 
-    final String apiUrl = '$_baseUrl/api/chats/${widget.chatId}/send';
-    print('Enviando mensagem para: $apiUrl com conteúdo: $texto');
-
     try {
       final response = await http.post(
-        Uri.parse(apiUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'senderId': widget.currentUserId,
-          'receiverId': widget.otherUserId,
-          'content': texto,
-        }),
+       Uri.parse('https://e9f6-187-18-138-85.ngrok-free.app/api/chats/${widget.chatId}/messages/send'),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode(novaMensagem.toJson()),
       );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final newMessageJson = json.decode(response.body);
-        final sentMessage = Mensagem.fromJson(newMessageJson);
-        setState(() {
-          // Substitui a mensagem temporária pela mensagem real da API
-          _messages[_messages.indexWhere((msg) => msg.id == _messages.last.id)] = sentMessage;
-        });
-        _scrollToBottom();
-        print('Mensagem enviada com sucesso!');
+      if (response.statusCode == 201) { // 201 CREATED é o esperado para o envio de mensagens
+        print('Mensagem enviada com sucesso! ${response.body}');
+        // Se desejar, você pode refetch as mensagens para obter o timestamp exato do servidor,
+        // ou atualizar apenas o timestamp da mensagem localmente.
+        // Por simplicidade, mantemos a adição local imediata.
       } else {
-        print('Falha ao enviar mensagem: ${response.statusCode} - ${response.body}');
-        // Se o envio falhar, remova a mensagem da UI ou marque-a como falha.
+        print('Falha ao enviar mensagem: ${response.statusCode} ${response.body}');
+        // Remover a mensagem que foi adicionada localmente se o envio falhar
         setState(() {
-          _messages.removeWhere((msg) => msg.id == _messages.last.id); // Remove a mensagem temporária
+          _mensagens.removeLast();
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao enviar mensagem: ${response.statusCode}')),
+          const SnackBar(content: Text('Erro ao enviar mensagem.')),
         );
       }
     } catch (e) {
-      print('Erro ao enviar mensagem: $e');
+      print('Erro de conexão ao enviar mensagem: $e');
+      // Remover a mensagem que foi adicionada localmente se houver erro de conexão
       setState(() {
-        _messages.removeWhere((msg) => msg.id == _messages.last.id); // Remove a mensagem temporária
+        _mensagens.removeLast();
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro de conexão ao enviar mensagem.')),
+        const SnackBar(content: Text('Erro de conexão ao enviar mensagem.')),
       );
     }
   }
 
-  // Permanece igual
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent + 60,
+          _scrollController.position.maxScrollExtent,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
@@ -195,176 +191,145 @@ class _TelaChatState extends State<TelaChat> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(60),
-        child: Container(
-          color: const Color(0xFFF5F5F5),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 6),
+      backgroundColor: const Color(0xFFF9F9F9),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 1,
+        centerTitle: true,
+        title: GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PerfilAdversarioPage(
+                  adversario: widget.otherUser,
+                ),
+              ),
+            );
+          },
+          child: Column(
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundImage: widget.otherUserFoto.startsWith('http')
+                    ? NetworkImage(widget.otherUserFoto) as ImageProvider
+                    : AssetImage(widget.otherUserFoto),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                widget.otherUserNome,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF8B2E2E)),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: _isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF8B2E2E),
+                      ),
+                    )
+                  : ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      itemCount: _mensagens.length,
+                      itemBuilder: (context, index) {
+                        final mensagem = _mensagens[index];
+                        // Determinar se a mensagem é do usuário logado ou do adversário
+                        final bool isMyMessage = mensagem.senderId == widget.currentUserId;
+
+                        return Align(
+                          alignment: isMyMessage ? Alignment.centerRight : Alignment.centerLeft,
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: isMyMessage ? const Color(0xFF8B2E2E) : const Color(0xFFEFEFEF),
+                              borderRadius: BorderRadius.only(
+                                topLeft: const Radius.circular(16),
+                                topRight: const Radius.circular(16),
+                                bottomLeft: Radius.circular(isMyMessage ? 16 : 4),
+                                bottomRight: Radius.circular(isMyMessage ? 4 : 16),
+                              ),
+                            ),
+                            child: Text(
+                              mensagem.content, // Usar 'content' em vez de 'texto'
+                              style: TextStyle(
+                                color: isMyMessage ? Colors.white : Colors.black87,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12.0),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF8D0000)),
-                    onPressed: () {
-                      Navigator.pop(context); // Volta para a tela anterior (TelaMatch ou Histórico de Chats)
-                    },
-                    splashRadius: 24,
-                  ),
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundImage: NetworkImage(widget.otherUserFoto), // Foto do outro usuário
-                    backgroundColor: Colors.grey[200],
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    widget.otherUserNome, // Nome do outro usuário
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF424242),
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(30),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: TextField(
+                        controller: _controller,
+                        decoration: const InputDecoration(
+                          hintText: 'Digite sua mensagem',
+                          border: InputBorder.none,
+                          hintStyle: TextStyle(color: Colors.black38),
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        minLines: 1,
+                        maxLines: 4,
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) => _enviarMensagem(),
+                      ),
                     ),
                   ),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.videocam_outlined, color: Color(0xFF8D0000)),
-                    onPressed: () {
-                      // Implementar funcionalidade de chamada de vídeo
-                    },
-                    splashRadius: 24,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.info_outline, color: Color(0xFF8D0000)),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const PerfilAdversarioPage()),
-                      );
-                    },
-                    splashRadius: 24,
+                  const SizedBox(width: 12),
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(30),
+                      onTap: _enviarMensagem,
+                      child: const Padding(
+                        padding: EdgeInsets.all(10),
+                        child: Icon(Icons.send, color: Color(0xFF8B2E2E), size: 28),
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
-          ),
+          ],
         ),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: _isLoadingChat
-                ? const Center(child: CircularProgressIndicator(color: Color(0xFF8B2E2E)))
-                : (_messages.isEmpty
-                    ? const Center(child: Text('Comece a conversar!'))
-                    : ListView.builder(
-                        controller: _scrollController,
-                        padding: const EdgeInsets.all(12),
-                        itemCount: _messages.length,
-                        itemBuilder: (context, index) {
-                          final message = _messages[index];
-                          // Verifica se a mensagem foi enviada pelo usuário atual
-                          final isMe = message.senderId == widget.currentUserId;
-                          return Align(
-                            alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
-                              decoration: BoxDecoration(
-                                color: isMe ? const Color(0xFFDCF8C6) : const Color(0xFFE0E0E0),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Text(
-                                message.content,
-                                style: const TextStyle(fontSize: 15, color: Colors.black87),
-                              ),
-                            ),
-                          );
-                        },
-                      )),
-          ),
-          _buildMessageComposer(),
-        ],
-      ),
-    );
-  }
-
-  // Permanece igual
-  Widget _buildMessageComposer() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0F0F0),
-                borderRadius: BorderRadius.circular(30),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: TextField(
-                controller: _controller,
-                decoration: const InputDecoration(
-                  hintText: 'Digite sua mensagem',
-                  border: InputBorder.none,
-                  hintStyle: TextStyle(color: Colors.black38),
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(vertical: 16),
-                ),
-                minLines: 1,
-                maxLines: 4,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => _enviarMensagem(),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(30),
-              onTap: _enviarMensagem,
-              child: const Padding(
-                padding: EdgeInsets.all(10),
-                child: Icon(Icons.send, color: Color(0xFF8B2E2E), size: 28),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// Classe _fotoCircular reutilizada de TelaMatch (pode ser um arquivo de utilidade)
-class _fotoCircular extends StatelessWidget {
-  final String foto;
-  final double size;
-
-  const _fotoCircular(this.foto, this.size);
-
-  @override
-  Widget build(BuildContext context) {
-    ImageProvider imageProvider;
-    if (foto.startsWith('assets/')) {
-      imageProvider = AssetImage(foto);
-    } else if (foto.startsWith('/data/') || foto.startsWith('file://')) {
-      imageProvider = FileImage(File(foto.replaceFirst('file://', '')));
-    } else {
-      imageProvider = NetworkImage(foto);
-    }
-
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        image: DecorationImage(image: imageProvider, fit: BoxFit.cover),
-        boxShadow: const [
-          BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 4)),
-        ],
       ),
     );
   }
