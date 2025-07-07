@@ -91,10 +91,41 @@ class _TelaExplorarState extends State<TelaExplorar> {
   int currentIndex = 0;
   bool _isLoading = true;
 
+  Pessoa? _currentUserPessoa; // Para armazenar os dados do usuário atual
+
   @override
   void initState() {
     super.initState();
+    _fetchCurrentUserProfile(); // Nova função para buscar o perfil do usuário atual
     _fetchPessoas();
+  }
+
+  Future<void> _fetchCurrentUserProfile() async {
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    final String? currentUid = currentUser?.uid;
+
+    if (currentUid == null) {
+      print('Usuário atual não logado, não é possível buscar o perfil.');
+      return;
+    }
+
+    // Supondo que você tenha um endpoint para buscar um único usuário pelo ID
+    final String apiUrl = 'https://e9f6-187-18-138-85.ngrok-free.app/api/usuarios/$currentUid'; 
+
+    try {
+      final response = await http.get(Uri.parse(apiUrl));
+      if (response.statusCode == 200) {
+        final userData = json.decode(response.body);
+        setState(() {
+          _currentUserPessoa = Pessoa.fromJson(userData);
+        });
+        print('Perfil do usuário atual buscado: ${_currentUserPessoa?.nome}');
+      } else {
+        print('Falha ao carregar o perfil do usuário atual: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('Erro ao buscar o perfil do usuário atual: $e');
+    }
   }
 
   // Método para buscar pessoas, agora com filtro de likes
@@ -594,6 +625,7 @@ Widget build(BuildContext context) {
           ),
         ), 
       ), 
-    ); 
+    )
+  ); 
   } 
 } 
