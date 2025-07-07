@@ -155,9 +155,9 @@ class _TelaExplorarState extends State<TelaExplorar> {
 
         // 3. Filtrar: remover o próprio usuário e usuários já curtidos
         fetchedPessoas = fetchedPessoas.where((pessoa) =>
-            pessoa.id != currentUid && // Remove o próprio usuário
-            !likedUserIds.contains(pessoa.id) // Remove usuários já curtidos
-        ).toList();
+                pessoa.id != currentUid && // Remove o próprio usuário
+                !likedUserIds.contains(pessoa.id) // Remove usuários já curtidos
+            ).toList();
 
         setState(() {
           pessoas = fetchedPessoas;
@@ -209,7 +209,7 @@ class _TelaExplorarState extends State<TelaExplorar> {
 
       final Uri likeUri = Uri.parse(
         'https://e9f6-187-18-138-85.ngrok-free.app/api/likes/create'
-        '?senderId=$senderId&receiverId=$receiverId',
+            '?senderId=$senderId&receiverId=$receiverId',
       );
 
       try {
@@ -234,8 +234,8 @@ class _TelaExplorarState extends State<TelaExplorar> {
               final bool isMatch = json.decode(checkMatchResponse.body);
               if (isMatch) {
                 print('MATCH! $senderId e $receiverId deram match!');
-                // Navegar para a TelaMatch e aguardar o retorno
-                await Navigator.push( // Adicione 'await' aqui
+                // Navegar para a TelaMatch
+                Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => TelaMatch(
@@ -246,54 +246,37 @@ class _TelaExplorarState extends State<TelaExplorar> {
                     ),
                   ),
                 );
-                // Após o retorno da TelaMatch, recarrega os perfis
-                _fetchPessoas(); // Adicione esta linha
               } else {
                 print('Não houve match com ${pessoas[currentIndex].nome}.');
-                // Se não houve match, apenas remove o perfil e atualiza a UI
-                 setState(() {
-                  pessoas.removeAt(currentIndex);
-                  if (pessoas.isEmpty) {
-                    _showNoMoreProfilesMessage();
-                  }
-                });
               }
             } else {
               print('Erro ao verificar match: ${checkMatchResponse.statusCode} - ${checkMatchResponse.body}');
-              // Em caso de erro na verificação de match, ainda remove o perfil
-              setState(() {
-                pessoas.removeAt(currentIndex);
-                if (pessoas.isEmpty) {
-                  _showNoMoreProfilesMessage();
-                }
-              });
             }
           } catch (e) {
             print('Erro na requisição de verificação de match: $e');
-            // Em caso de erro na verificação de match, ainda remove o perfil
-            setState(() {
-              pessoas.removeAt(currentIndex);
-              if (pessoas.isEmpty) {
-                _showNoMoreProfilesMessage();
-              }
-            });
           }
 
           // A pessoa que acabou de ser curtida deve ser removida da lista.
-          // Este bloco só será executado se NÃO HOUVER match, ou se a navegação para TelaMatch não for aguardada.
-          // Se houve match, o _fetchPessoas já vai lidar com a remoção e recarga.
-          // Se não houve match, o bloco else acima já remove.
-          // Portanto, esta parte pode ser removida ou ajustada para evitar duplicação ou comportamento indesejado.
-          // Vamos garantir que a remoção ocorra apenas uma vez.
-          // O ideal é que o _fetchPessoas() seja chamado após o retorno de TelaMatch.
-          // Se não houver match, a remoção local é suficiente para avançar para o próximo perfil.
-
+          // Em vez de _fetchPessoas completo, podemos remover localmente
+          // e ajustar o currentIndex, ou chamar _fetchPessoas para garantir consistência.
+          // Para esta solução, vamos remover localmente e depois avançar.
+          setState(() {
+            pessoas.removeAt(currentIndex); // Remove o perfil curtido
+            // Não incrementamos currentIndex aqui, pois removemos o item atual,
+            // e o próximo item já estará na posição 'currentIndex'.
+            // Se a lista ficar vazia, a interface de "sem mais perfis" será mostrada.
+          });
+          // Se a lista ficou vazia após a remoção, exibe a mensagem
+          if (pessoas.isEmpty) {
+            _showNoMoreProfilesMessage();
+          }
         } else {
           print('Erro ao enviar like: ${likeResponse.statusCode} - ${likeResponse.body}');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Erro ao enviar like: ${likeResponse.statusCode}')),
           );
-          // Ainda avança para o próximo perfil mesmo com erro no like
+          // Ainda avança para o próximo perfil mesmo com erro no like,
+          // mas o perfil com erro será filtrado na próxima recarga de _fetchPessoas
           setState(() {
             currentIndex++;
           });
@@ -304,8 +287,8 @@ class _TelaExplorarState extends State<TelaExplorar> {
           SnackBar(content: Text('Erro de rede ao enviar like: $e')),
         );
         setState(() {
-            currentIndex++;
-          });
+          currentIndex++;
+        });
       }
     } else {
       _showNoMoreProfilesMessage();
@@ -417,13 +400,55 @@ class _TelaExplorarState extends State<TelaExplorar> {
                 backgroundImage: NetworkImage(pessoa.foto),
               ),
               const SizedBox(height: 20),
-              Text(
-                '${pessoa.nome}, ${pessoa.idade}',
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF8B2E2E),
-                ),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  // Define um limite de largura para o nome + idade na mesma linha
+                  double maxWidth = constraints.maxWidth * 0.7; // ajuste a porcentagem se necessário
+
+                  TextSpan fullText = TextSpan(
+                    text: '${pessoa.nome}, ${pessoa.idade}',
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF8B2E2E),
+                    ),
+                  );
+
+                  TextPainter tp = TextPainter(
+                    text: fullText,
+                    maxLines: 1,
+                    textDirection: Directionality.of(context),
+                  );
+
+                  tp.layout(maxWidth: maxWidth);
+
+                  // Se ultrapassar o limite, exibe nome e idade em linhas separadas
+                  if (tp.didExceedMaxLines) {
+                    return Column(
+                      children: [
+                        Text(
+                          pessoa.nome + ',',
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF8B2E2E),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        Text(
+                          '${pessoa.idade}',
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF8B2E2E),
+                          ),
+                        ),
+                      ],
+                    );
+                  } else {
+                    return Text.rich(fullText, textAlign: TextAlign.center);
+                  }
+                },
               ),
               const SizedBox(height: 8),
               Row(
@@ -494,10 +519,10 @@ class _TelaExplorarState extends State<TelaExplorar> {
                     child: Container(
                       width: 70,
                       height: 70,
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         color: Colors.white,
                         shape: BoxShape.circle,
-                        boxShadow: const [
+                        boxShadow: [
                           BoxShadow(
                             color: Colors.black12,
                             blurRadius: 10,
@@ -514,10 +539,10 @@ class _TelaExplorarState extends State<TelaExplorar> {
                     child: Container(
                       width: 70,
                       height: 70,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF8B2E2E),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF8B2E2E),
                         shape: BoxShape.circle,
-                        boxShadow: const [
+                        boxShadow: [
                           BoxShadow(
                             color: Colors.black45,
                             blurRadius: 10,
@@ -537,63 +562,64 @@ class _TelaExplorarState extends State<TelaExplorar> {
     );
   }
 
-@override
-Widget build(BuildContext context) {
-  return WillPopScope(
-    onWillPop: _onWillPop,
-    child: Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Explorar',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color.fromARGB(255, 0, 0, 0),
+  @override
+  Widget build(BuildContext context) {
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF5F5F5),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Explorar',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Color.fromARGB(255, 0, 0, 0),
+                      ),
                     ),
-                  ),
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.chat_bubble_outline, color: Color(0xFF8B2E2E)),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const TelaHistoricoChats()),
-                          );
-                        },
-                        splashRadius: 24,
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.person_outline, color: Color(0xFF8B2E2E)),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const PerfilUsuarioPage()),
-                          );
-                        },
-                        splashRadius: 24,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Expanded(
-                child: _buildPerfil(),
-              ),
-            ],
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.chat_bubble_outline, color: Color(0xFF8B2E2E)),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const TelaHistoricoChats()),
+                            );
+                          },
+                          splashRadius: 24,
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.person_outline, color: Color(0xFF8B2E2E)),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const PerfilUsuarioPage()),
+                            );
+                          },
+                          splashRadius: 24,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Expanded(
+                  child: _buildPerfil(),
+                ),
+              ],
+            ),
           ),
-        ), 
-      ), 
-    ); 
-  } 
-} 
+        ),
+      ),
+    );
+  }
+}
