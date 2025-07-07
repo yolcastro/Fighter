@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:fighter_app/usuario.service.dart'; // ajuste conforme seu projeto
+import 'package:fighter_app/usuario.service.dart';
 
 class TelaArtesMarciais extends StatefulWidget {
   final String? sexo;
@@ -75,14 +75,19 @@ class _TelaArtesMarciaisState extends State<TelaArtesMarciais> {
     final Map<String, dynamic> updateData = {
       'arteMarcial': selecionadas,
       'nivelExperiencia': nivelSelecionado,
-      'preferenciaSexo': widget.sexo,
-      'preferenciaNivel': widget.nivelExperiencia,
-      'preferenciaPeso': widget.pesoCategoria,
+    };
+
+    final Map<String, dynamic> filtrosParaExplorar = {
+      if (widget.sexo != null) 'sexo': widget.sexo,
+      if (widget.nivelExperiencia != null) 'nivelExperiencia': widget.nivelExperiencia,
+      if (widget.pesoCategoria != null) 'pesoCategoria': widget.pesoCategoria,
+      if (selecionadas.isNotEmpty) 'arteMarcial': selecionadas,
+      if (nivelSelecionado != null) 'nivelExperiencia': nivelSelecionado,
     };
 
     final sucesso = await UsuarioService.atualizarUsuario(currentUser.uid, updateData);
     if (sucesso) {
-      Navigator.pushNamed(context, '/fotoperfil');
+      Navigator.pushNamed(context, '/fotoperfil', arguments: filtrosParaExplorar);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Erro ao salvar suas artes marciais.')),
@@ -238,7 +243,7 @@ class _TelaArtesMarciaisState extends State<TelaArtesMarciais> {
             child: const Text(
               'PRÓXIMO',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 15,
                 fontWeight: FontWeight.w600,
                 color: Colors.white,
                 letterSpacing: 1.0,
