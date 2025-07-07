@@ -7,6 +7,11 @@ class TelaMatch extends StatelessWidget {
   final String foto1;
   final String nome2;
   final String foto2;
+  final String chatId;
+  final String currentUserId;
+  final String otherUserId;
+  final String otherUserNome;
+  final String otherUserFoto;
 
   const TelaMatch({
     super.key,
@@ -14,29 +19,21 @@ class TelaMatch extends StatelessWidget {
     required this.foto1,
     required this.nome2,
     required this.foto2,
+    required this.chatId,
+    required this.currentUserId,
+    required this.otherUserId,
+    required this.otherUserNome,
+    required this.otherUserFoto,
   });
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final avatarSize = size.width * 0.3;
-
+    // ... (restante do código build)
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Container(
-          width: double.infinity,
-          padding: EdgeInsets.symmetric(
-            horizontal: size.width * 0.08,
-            vertical: size.height * 0.06,
-          ),
-          decoration: const BoxDecoration(
-            gradient: RadialGradient(
-              center: Alignment(0, -0.5),
-              radius: 1.2,
-              colors: [Color(0xFFF5DCDC), Colors.white],
-            ),
-          ),
+          // ... (padding e decoration)
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
