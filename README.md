@@ -1,16 +1,40 @@
-# fighter_app
+# 🥊 Fighter
 
-A new Flutter project.
+Aplicativo Flutter para **conexões entre praticantes de artes marciais**.
 
-## Getting Started
+---
 
-This project is a starting point for a Flutter application.
 
-A few resources to get you started if this is your first Flutter project:
+## 📱 Sobre o projeto
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+**Fighter** é um aplicativo desenvolvido em Flutter que conecta entusiastas, praticantes e profissionais de artes marciais. Com ele, você pode:
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- Criar e editar o seu perfil de lutador.
+- Destacar os estilos de luta que você pratica.
+- Encontrar parceiros de treino e combate de acordo com suas preferências.
+- Conversar com usuários que compartilham os mesmos interesses.
+- Visualizar o perfil dos seus adversários com informações detalhadas.
+
+O objetivo é **unir tecnologia e artes marciais** em uma experiência intuitiva, moderna e funcional.
+
+
+---
+
+
+## 🚀 Tecnologias utilizadas
+
+- [Flutter] (https://flutter.dev/) – Framework de UI multiplataforma.
+- [Firebase Authentication] (https://firebase.google.com/docs/auth) – Autenticação de usuários.
+- [Cloud Firestore] (https://firebase.google.com/docs/firestore) – Banco de dados em tempo real.
+
+
+---
+
+
+## 💡 Como rodar
+
+Clone este repositório e, na pasta do projeto Flutter:
+
+```bash
+flutter pub get
+flutter run
