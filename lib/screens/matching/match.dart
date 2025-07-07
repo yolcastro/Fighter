@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'explorar.dart';
+import 'explorar.dart'; // Certifique-se de que este import está correto
 
 class TelaMatch extends StatelessWidget {
   final String nome1;
@@ -134,10 +134,9 @@ class TelaMatch extends StatelessWidget {
       width: size.width * 0.75,
       child: OutlinedButton(
         onPressed: () {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const TelaExplorar()),
-          );
+          // Usa Navigator.pop para fechar a TelaMatch e retornar à tela anterior (TelaExplorar)
+          // Isso fará com que o `await Navigator.push` em _like() seja concluído
+          Navigator.pop(context);
         },
         style: OutlinedButton.styleFrom(
           side: const BorderSide(color: Color(0xFF8B2E2E)),
@@ -156,9 +155,19 @@ class TelaMatch extends StatelessWidget {
   }
 
   Widget _fotoCircular(String foto, double size) {
-    final imageProvider = foto.startsWith('assets/')
-        ? AssetImage(foto)
-        : FileImage(File(foto)) as ImageProvider;
+    ImageProvider imageProvider;
+    // Verifica se a string da foto é um caminho de asset local
+    if (foto.startsWith('assets/')) {
+      imageProvider = AssetImage(foto);
+    }
+    // Verifica se a string da foto é um caminho de arquivo local (ex: de image_picker)
+    else if (foto.startsWith('/data/') || foto.startsWith('file://')) { // Adicionado 'file://' para robustez
+      imageProvider = FileImage(File(foto.replaceFirst('file://', ''))); // Remove 'file://' se presente
+    }
+    // Assume que é uma URL de rede
+    else {
+      imageProvider = NetworkImage(foto);
+    }
 
     return Container(
       width: size,

@@ -207,7 +207,7 @@ class _TelaExplorarState extends State<TelaExplorar> {
         return;
       }
 
-       final Uri likeUri = Uri.parse(
+      final Uri likeUri = Uri.parse(
         'https://e9f6-187-18-138-85.ngrok-free.app/api/likes/create'
         '?senderId=$senderId&receiverId=$receiverId',
       );
@@ -234,8 +234,8 @@ class _TelaExplorarState extends State<TelaExplorar> {
               final bool isMatch = json.decode(checkMatchResponse.body);
               if (isMatch) {
                 print('MATCH! $senderId e $receiverId deram match!');
-                // Navegar para a TelaMatch
-                Navigator.push(
+                // Navegar para a TelaMatch e aguardar o retorno
+                await Navigator.push( // Adicione 'await' aqui
                   context,
                   MaterialPageRoute(
                     builder: (context) => TelaMatch(
@@ -246,38 +246,54 @@ class _TelaExplorarState extends State<TelaExplorar> {
                     ),
                   ),
                 );
+                // Após o retorno da TelaMatch, recarrega os perfis
+                _fetchPessoas(); // Adicione esta linha
               } else {
                 print('Não houve match com ${pessoas[currentIndex].nome}.');
+                // Se não houve match, apenas remove o perfil e atualiza a UI
+                 setState(() {
+                  pessoas.removeAt(currentIndex);
+                  if (pessoas.isEmpty) {
+                    _showNoMoreProfilesMessage();
+                  }
+                });
               }
             } else {
               print('Erro ao verificar match: ${checkMatchResponse.statusCode} - ${checkMatchResponse.body}');
+              // Em caso de erro na verificação de match, ainda remove o perfil
+              setState(() {
+                pessoas.removeAt(currentIndex);
+                if (pessoas.isEmpty) {
+                  _showNoMoreProfilesMessage();
+                }
+              });
             }
           } catch (e) {
             print('Erro na requisição de verificação de match: $e');
+            // Em caso de erro na verificação de match, ainda remove o perfil
+            setState(() {
+              pessoas.removeAt(currentIndex);
+              if (pessoas.isEmpty) {
+                _showNoMoreProfilesMessage();
+              }
+            });
           }
 
           // A pessoa que acabou de ser curtida deve ser removida da lista.
-          // Em vez de _fetchPessoas completo, podemos remover localmente
-          // e ajustar o currentIndex, ou chamar _fetchPessoas para garantir consistência.
-          // Para esta solução, vamos remover localmente e depois avançar.
-          setState(() {
-            pessoas.removeAt(currentIndex); // Remove o perfil curtido
-            // Não incrementamos currentIndex aqui, pois removemos o item atual,
-            // e o próximo item já estará na posição 'currentIndex'.
-            // Se a lista ficar vazia, a interface de "sem mais perfis" será mostrada.
-          });
-          // Se a lista ficou vazia após a remoção, exibe a mensagem
-          if (pessoas.isEmpty) {
-            _showNoMoreProfilesMessage();
-          }
+          // Este bloco só será executado se NÃO HOUVER match, ou se a navegação para TelaMatch não for aguardada.
+          // Se houve match, o _fetchPessoas já vai lidar com a remoção e recarga.
+          // Se não houve match, o bloco else acima já remove.
+          // Portanto, esta parte pode ser removida ou ajustada para evitar duplicação ou comportamento indesejado.
+          // Vamos garantir que a remoção ocorra apenas uma vez.
+          // O ideal é que o _fetchPessoas() seja chamado após o retorno de TelaMatch.
+          // Se não houver match, a remoção local é suficiente para avançar para o próximo perfil.
 
         } else {
           print('Erro ao enviar like: ${likeResponse.statusCode} - ${likeResponse.body}');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Erro ao enviar like: ${likeResponse.statusCode}')),
           );
-          // Ainda avança para o próximo perfil mesmo com erro no like,
-          // mas o perfil com erro será filtrado na próxima recarga de _fetchPessoas
+          // Ainda avança para o próximo perfil mesmo com erro no like
           setState(() {
             currentIndex++;
           });
