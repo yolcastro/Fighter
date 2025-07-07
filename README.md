@@ -23,9 +23,9 @@ O objetivo é **unir tecnologia e artes marciais** em uma experiência intuitiva
 
 ## 🚀 Tecnologias utilizadas
 
-- [Flutter] (https://flutter.dev/) – Framework de UI multiplataforma
-- [Firebase Authentication] (https://firebase.google.com/docs/auth) – Autenticação de usuários
-- [Cloud Firestore] (https://firebase.google.com/docs/firestore) – Banco de dados em tempo real
+- [Flutter] (https://flutter.dev/) – Framework de UI multiplataforma.
+- [Firebase Authentication] (https://firebase.google.com/docs/auth) – Autenticação de usuários.
+- [Cloud Firestore] (https://firebase.google.com/docs/firestore) – Banco de dados em tempo real.
 
 
 ---
