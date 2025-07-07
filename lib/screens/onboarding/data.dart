@@ -22,6 +22,24 @@ class _TelaDataNascimentoState extends State<TelaDataNascimento> {
   ];
   final List<String> anos = List.generate(100, (i) => '${DateTime.now().year - i}');
 
+  @override
+  void initState() {
+    super.initState();
+
+    // Garante que os valores default existam nas listas
+    if (!dias.contains(dia)) {
+      dia = dias.first;
+    }
+
+    if (!meses.contains(mes)) {
+      mes = meses.first;
+    }
+
+    if (!anos.contains(ano)) {
+      ano = anos.first;
+    }
+  }
+
   int obterNumeroMes(String mes) {
     return meses.indexOf(mes) + 1;
   }
@@ -132,6 +150,10 @@ class _TelaDataNascimentoState extends State<TelaDataNascimento> {
   }
 
   Widget _buildDropdown(String label, String? valor, List<String> opcoes, ValueChanged<String?> onChange) {
+    // Ensure the value passed to DropdownButtonFormField is always one of the valid options.
+    // If the current 'valor' is not in 'opcoes', default to the first option.
+    String? displayValue = valor != null && opcoes.contains(valor) ? valor : opcoes.first;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -142,11 +164,11 @@ class _TelaDataNascimentoState extends State<TelaDataNascimento> {
         const SizedBox(height: 6),
         Container(
           decoration: BoxDecoration(
-            color: const Color(0xFFE0E0E0), // cor padronizada
+            color: const Color(0xFFE0E0E0),
             borderRadius: BorderRadius.circular(30),
             boxShadow: const [
               BoxShadow(
-                color: Colors.black12, // sombra suave
+                color: Colors.black12,
                 blurRadius: 4,
                 offset: Offset(0, 2),
               ),
@@ -156,7 +178,8 @@ class _TelaDataNascimentoState extends State<TelaDataNascimento> {
           child: DropdownButtonFormField<String>(
             isDense: true,
             isExpanded: true,
-            value: valor,
+            // Use displayValue here
+            value: displayValue,
             items: opcoes.map((item) => DropdownMenuItem(
               value: item,
               child: Text(

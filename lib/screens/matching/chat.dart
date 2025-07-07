@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'historico_conversas.dart';
 import 'perfil_adversario.dart';
-import 'explorar.dart'; // Certifique-se de que a classe Pessoa está definida aqui e importada
-import 'package:http/http.dart' as http; // Importar pacote HTTP
-import 'dart:convert'; // Importar para trabalhar com JSON
-import 'dart:async'; // Importar para usar Timer
+import 'explorar.dart'; 
+import 'package:http/http.dart' as http;
+import 'dart:convert'; 
+import 'dart:async';
 
 // URL base da sua API. Certifique-se de que esta URL está correta e acessível.
 const String BASE_URL = 'https://7600-187-18-138-85.ngrok-free.app';
 
 class Mensagem {
   final String senderId; // ID do remetente
-  final String receiverId; // ID do destinatário (opcional para exibição, mas útil para o envio)
+  final String receiverId; // ID do destinatário
   final String content; // Conteúdo da mensagem
   final DateTime timestamp; // Timestamp da mensagem, agora como DateTime
 
@@ -251,52 +251,78 @@ class _TelaChatState extends State<TelaChat> {
 
   @override
   Widget build(BuildContext context) {
-    // Determina a foto do próprio usuário (pode ser obtida do perfil do usuário logado)
-    // Por enquanto, usando um placeholder. Idealmente, você passaria o objeto Pessoa do usuário logado para TelaChat.
-    final String fotoUsuario = 'https://placehold.co/100x100/A0A0A0/FFFFFF?text=Eu'; // Placeholder
-
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F9F9),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 1,
-        centerTitle: true,
-        title: GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => PerfilAdversarioPage(
-                  adversario: widget.otherUser,
-                ),
-              ),
-            );
-          },
-          child: Column(
-            children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundImage: widget.otherUserFoto.startsWith('http')
-                    ? NetworkImage(widget.otherUserFoto) as ImageProvider
-                    : AssetImage(widget.otherUserFoto),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                widget.otherUserNome,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
+      backgroundColor: Colors.white,
+      appBar: PreferredSize(
+        // Define uma altura ligeiramente maior para a AppBar
+        preferredSize: const Size.fromHeight(kToolbarHeight + 10), // Ajuste a altura conforme necessário
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFEFEFEF), // Fundo do appbar
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.12), // Sombra mais sutil
+                blurRadius: 6,
+                offset: const Offset(0, 3), // Deslocamento da sombra
               ),
             ],
           ),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF8B2E2E)),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          child: SafeArea( // Garante que o conteúdo não invada a área da notch/status bar
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4.0), // Ajuste o padding horizontal
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween, // Distribui o espaço entre os elementos
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF8B2E2E)),
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    splashRadius: 24,
+                  ),
+                  Expanded( // Ocupa o espaço restante no centro
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PerfilAdversarioPage(
+                              adversario: widget.otherUser,
+                            ),
+                          ),
+                        );
+                      },
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center, // Centraliza verticalmente na AppBar
+                        mainAxisSize: MainAxisSize.min, // Ocupa o mínimo de altura
+                        children: [
+                          CircleAvatar(
+                            radius: 18,
+                            backgroundImage: widget.otherUserFoto.startsWith('http')
+                                ? NetworkImage(widget.otherUserFoto) as ImageProvider
+                                : AssetImage(widget.otherUserFoto),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            widget.otherUserNome,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                            overflow: TextOverflow.ellipsis, // Trunca o texto se for muito longo
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Se você quiser um ícone ou widget à direita, adicione aqui.
+                  // Caso contrário, um SizedBox vazio ou Container pode ser usado para balancear.
+                  const SizedBox(width: 48), // Espaço para balancear com o ícone de voltar à esquerda
+                ],
+              ),
+            ),
+          ),
         ),
       ),
       body: SafeArea(
@@ -324,7 +350,8 @@ class _TelaChatState extends State<TelaChat> {
                             margin: const EdgeInsets.symmetric(vertical: 4),
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                             decoration: BoxDecoration(
-                              color: isMyMessage ? const Color(0xFF8B2E2E) : const Color(0xFFEFEFEF),
+                              // Cor das mensagens enviadas como #f3d1d1
+                              color: isMyMessage ? const Color(0xFFF3D1D1) : const Color(0xFFEFEFEF),
                               borderRadius: BorderRadius.only(
                                 topLeft: const Radius.circular(16),
                                 topRight: const Radius.circular(16),
@@ -335,7 +362,7 @@ class _TelaChatState extends State<TelaChat> {
                             child: Text(
                               mensagem.content,
                               style: TextStyle(
-                                color: isMyMessage ? Colors.white : Colors.black87,
+                                color: isMyMessage ? Colors.black87 : Colors.black87, // Cor do texto ajustada para legibilidade
                                 fontSize: 15,
                               ),
                             ),
