@@ -62,6 +62,10 @@ class _PerfilUsuarioPageState extends State<PerfilUsuarioPage> {
     );
 
     if (confirmar == true) {
+      // ✅ Desloga do Firebase antes de navegar
+      await FirebaseAuth.instance.signOut();
+
+      // ✅ Navega para login removendo todas as rotas anteriores
       Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
     }
   }
