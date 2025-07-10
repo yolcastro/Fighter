@@ -2,6 +2,7 @@
 
 Aplicativo Flutter para **conexões entre praticantes de artes marciais**.
 
+
 ---
 
 
@@ -15,6 +16,9 @@ Aplicativo Flutter para **conexões entre praticantes de artes marciais**.
 - Conversar com usuários que compartilham os mesmos interesses.
 - Visualizar o perfil dos seus adversários com informações detalhadas.
 
+⚠️ **Este repositório contém apenas o front-end do aplicativo**.  
+➡️ O repositório do back-end está disponível em: [Backend Fighters](https://github.com/sofiaprata/backend-fighters/).
+
 O objetivo é **unir tecnologia e artes marciais** em uma experiência intuitiva, moderna e funcional.
 
 
@@ -26,15 +30,3 @@ O objetivo é **unir tecnologia e artes marciais** em uma experiência intuitiva
 - [Flutter] (https://flutter.dev/) – Framework de UI multiplataforma.
 - [Firebase Authentication] (https://firebase.google.com/docs/auth) – Autenticação de usuários.
 - [Cloud Firestore] (https://firebase.google.com/docs/firestore) – Banco de dados em tempo real.
-
-
----
-
-
-## 💡 Como rodar
-
-Clone este repositório e, na pasta do projeto Flutter:
-
-```bash
-flutter pub get
-flutter run
